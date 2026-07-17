@@ -16,7 +16,6 @@ import leader.module.Module;
 import leader.property.properties.*;
 import leader.util.ItemUtil;
 import leader.util.KeyBindUtil;
-import leader.util.PacketUtil;
 import leader.util.TimerUtil;
 
 public class BlockHit extends Module {
@@ -32,7 +31,8 @@ public class BlockHit extends Module {
     private final ModeProperty autoBlockTime = new ModeProperty("AutoBlock Time",0, new String[]{"Delay","HurtTime","Sag","Smart"},() -> this.mode.getValue() == 1);
     private final BooleanProperty onFirstHit = new BooleanProperty("OnFirstHit",true, () -> this.mode.getValue() == 1 && this.autoBlockTime.getValue() == 3);
     private final IntProperty smartBlockTick = new IntProperty("Smart Block Ticks",2,1,5, () -> this.mode.getValue() == 1 && this.autoBlockTime.getValue() == 3);
-    private final IntProperty smartBlockHurtTime = new IntProperty("Smart Block HurtTime",2,1,10, () -> this.mode.getValue() == 1 && this.autoBlockTime.getValue() == 3);
+    private final BooleanProperty releaseAfterHit = new BooleanProperty("Release After Hit",true, () -> this.mode.getValue() == 1 && this.autoBlockTime.getValue() == 3);
+    private final IntProperty smartBlockHurtTime = new IntProperty("Smart Block HurtTime",2,0,10, () -> this.mode.getValue() == 1 && this.autoBlockTime.getValue() == 3);
     private final IntProperty blockDelay = new IntProperty("Block Delay",100,0,1000, () -> this.mode.getValue() == 1 && this.autoBlockTime.getValue() == 0);
     private final IntProperty holdTick = new IntProperty("Hold Ticks",2,2,5, () -> this.mode.getValue() == 1 && this.autoMode.getValue() == 1  && this.autoBlockTime.getValue() == 0);
     private final IntProperty minHurtTime = new IntProperty("Min HurtTime",10,1,10, () -> this.mode.getValue() == 1 && this.autoBlockTime.getValue() == 1);
@@ -143,6 +143,11 @@ public class BlockHit extends Module {
                         if (canBlock){
                             getBlockTicks++;
                             KeyBindUtil.setKeyBindState(mc.gameSettings.keyBindUseItem.getKeyCode(), true);
+                        }
+                        if (mc.thePlayer.hurtTime == 9 && releaseAfterHit.getValue()){
+                            canBlock = false;
+                            KeyBindUtil.updateKeyState(mc.gameSettings.keyBindUseItem.getKeyCode());
+                            getBlockTicks = 0;
                         }
                         if (getBlockTicks > smartBlockTick.getValue()){
                             canBlock = false;

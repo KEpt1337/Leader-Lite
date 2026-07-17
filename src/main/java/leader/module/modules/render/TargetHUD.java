@@ -376,8 +376,6 @@ public class TargetHUD extends Module {
         RenderUtil.drawGradientTriangle(tipX, tipY, leftX, baseY, rightX, baseY, tipAccentColor, bgBaseColor);
         RenderUtil.disableRenderState();
 
-        // --- 周长进度血条 ---
-        // 轨道（底层暗色）
         int trackColor = new Color(targetColor.getRed(), targetColor.getGreen(), targetColor.getBlue(), 45).getRGB();
         RenderUtil.enableRenderState();
         RenderUtil.drawTriangleOutline(tipX, tipY, leftX, baseY, rightX, baseY, barLineWidth, trackColor);
