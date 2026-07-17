@@ -55,6 +55,7 @@ public class TargetHUD extends Module {
     public final IntProperty offX = new IntProperty("offset-x", 0, -255, 255);
     public final IntProperty offY = new IntProperty("offset-y", 40, -255, 255);
     public final PercentProperty background = new PercentProperty("background", 25);
+    public final ColorProperty backgroundColor = new ColorProperty("background-color", Color.BLACK.getRGB());
     public final BooleanProperty head = new BooleanProperty("head", true);
     public final BooleanProperty indicator = new BooleanProperty("indicator", true, () -> this.mode.getValue() != 2);
     public final BooleanProperty outline = new BooleanProperty("outline", false, () -> this.mode.getValue() != 2);
@@ -112,6 +113,26 @@ public class TargetHUD extends Module {
 
     public TargetHUD() {
         super("TargetHUD", false, true);
+    }
+
+    private int getBackgroundColor() {
+        return new Color((this.backgroundColor.getValue() >> 16) & 255, (this.backgroundColor.getValue() >> 8) & 255,
+                this.backgroundColor.getValue() & 255, this.getBackgroundAlpha()).getRGB();
+    }
+
+    private int getBackgroundOverlayColor(Color color) {
+        return new Color(color.getRed(), color.getGreen(), color.getBlue(), this.getBackgroundAlpha() / 2).getRGB();
+    }
+
+    private int getBackgroundAlpha() {
+        return Math.round((float) this.background.getValue() / 100.0F * 255.0F);
+    }
+
+    private void drawOutline(float x1, float y1, float x2, float y2, float width, int color) {
+        RenderUtil.drawLine(x1, y1, x2, y1, width, color);
+        RenderUtil.drawLine(x2, y1, x2, y2, width, color);
+        RenderUtil.drawLine(x2, y2, x1, y2, width, color);
+        RenderUtil.drawLine(x1, y2, x1, y1, width, color);
     }
 
     @EventTarget
@@ -199,9 +220,10 @@ public class TargetHUD extends Module {
                 GlStateManager.scale(this.scale.getValue(), this.scale.getValue(), 0.0F);
                 GlStateManager.translate(posX, posY, -450.0F);
                 RenderUtil.enableRenderState();
-                int backgroundColor = new Color(0.0F, 0.0F, 0.0F, (float) this.background.getValue() / 100.0F).getRGB();
-                int outlineColor = this.outline.getValue() ? targetColor.getRGB() : new Color(0, 0, 0, 0).getRGB();
-                RenderUtil.drawOutlineRect(0.0F, 0.0F, barTotalWidth, 27.0F, 1.5F, backgroundColor, outlineColor);
+                RenderUtil.drawRect(0.0F, 0.0F, barTotalWidth, 27.0F, this.getBackgroundColor());
+                if (this.outline.getValue()) {
+                    this.drawOutline(0.0F, 0.0F, barTotalWidth, 27.0F, 1.5F, targetColor.getRGB());
+                }
                 RenderUtil.drawRect(headIconOffset + 2.0F, 22.0F, barTotalWidth - 2.0F, 25.0F, ColorUtil.darker(healthBarColor, 0.2F).getRGB());
                 RenderUtil.drawRect(headIconOffset + 2.0F, 22.0F, headIconOffset + 2.0F + healthRatio * (barTotalWidth - 2.0F - headIconOffset - 2.0F), 25.0F, healthBarColor.getRGB());
                 RenderUtil.disableRenderState();
@@ -280,15 +302,13 @@ public class TargetHUD extends Module {
         GlStateManager.translate(posX, posY, -450.0F);
 
         RenderUtil.enableRenderState();
-        int backgroundColor = new Color(0.0F, 0.0F, 0.0F, (float) this.background.getValue() / 100.0F).getRGB();
-        RenderUtil.drawRect(0.0F, 0.0F, barWidth, barHeight, backgroundColor);
+        RenderUtil.drawRect(0.0F, 0.0F, barWidth, barHeight, this.getBackgroundColor());
 
-        Color healthBg = new Color(healthBarColor.getRed(), healthBarColor.getGreen(), healthBarColor.getBlue(), (float) this.background.getValue() / 100.0F);
         float filledWidth = healthRatio * barWidth;
-        RenderUtil.drawRect(0.0F, 0.0F, filledWidth, barHeight, healthBg.getRGB());
+        RenderUtil.drawRect(0.0F, 0.0F, filledWidth, barHeight, this.getBackgroundOverlayColor(healthBarColor));
 
         int borderColor = new Color(targetColor.getRed(), targetColor.getGreen(), targetColor.getBlue(), 80).getRGB();
-        RenderUtil.drawOutlineRect(0.0F, 0.0F, barWidth, barHeight, 1.0F, 0, borderColor);
+        this.drawOutline(0.0F, 0.0F, barWidth, barHeight, 1.0F, borderColor);
         RenderUtil.disableRenderState();
 
         GlStateManager.disableDepth();
@@ -316,7 +336,6 @@ public class TargetHUD extends Module {
         GlStateManager.popMatrix();
     }
 
-    /** 三角形 (TRIANGLE) 模式 —— 血条沿三角形周长环绕 */
     private void renderTriangle(ScaledResolution scaledResolution,
                                 String targetNameText, String healthText, String statusText, String healthDiffText,
                                 int targetNameWidth, int healthTextWidth, int statusTextWidth, int healthDiffWidth,
@@ -328,7 +347,6 @@ public class TargetHUD extends Module {
         final float headSize = 20.0F;
         final float barLineWidth = 3.5F;
 
-        // --- 定位 ---
         float triPosX = this.offX.getValue().floatValue() / this.scale.getValue();
         switch (this.posX.getValue()) {
             case 1:
@@ -359,7 +377,6 @@ public class TargetHUD extends Module {
         GlStateManager.scale(this.scale.getValue(), this.scale.getValue(), 0.0F);
         GlStateManager.translate(0.0F, 0.0F, -450.0F);
 
-        // --- 阴影 ---
         if (this.shadow.getValue()) {
             RenderUtil.enableRenderState();
             RenderUtil.drawFilledTriangle(tipX, tipY + 2.0F, leftX + 2.0F, baseY + 3.0F, rightX - 2.0F, baseY + 3.0F,
@@ -367,35 +384,28 @@ public class TargetHUD extends Module {
             RenderUtil.disableRenderState();
         }
 
-        // --- 填充：渐变背景 ---
         RenderUtil.enableRenderState();
-        int bgAlpha = Math.min(this.background.getValue(), 255);
-        int bgBaseColor = new Color(0, 0, 0, (float) bgAlpha / 100.0F).getRGB();
-        int tipAccentColor = new Color(targetColor.getRed(), targetColor.getGreen(), targetColor.getBlue(),
-                Math.min(bgAlpha * 2, 120)).getRGB();
+        int bgBaseColor = this.getBackgroundColor();
+        int tipAccentColor = this.getBackgroundOverlayColor(targetColor);
         RenderUtil.drawGradientTriangle(tipX, tipY, leftX, baseY, rightX, baseY, tipAccentColor, bgBaseColor);
         RenderUtil.disableRenderState();
 
         int trackColor = new Color(targetColor.getRed(), targetColor.getGreen(), targetColor.getBlue(), 45).getRGB();
         RenderUtil.enableRenderState();
         RenderUtil.drawTriangleOutline(tipX, tipY, leftX, baseY, rightX, baseY, barLineWidth, trackColor);
-        // 进度（上层亮色，从底边左端顺时针填充）
         int barEmptyColor = ColorUtil.darker(healthBarColor, 0.3F).getRGB();
         RenderUtil.drawTriangleProgressBorder(leftX, baseY, tipX, tipY, rightX, baseY,
                 healthRatio, barLineWidth, healthBarColor.getRGB(), barEmptyColor);
         RenderUtil.disableRenderState();
 
-        // --- 外框（outline 模式） ---
         if (this.outline.getValue()) {
             RenderUtil.enableRenderState();
             RenderUtil.drawTriangleOutline(tipX, tipY, leftX, baseY, rightX, baseY, 2.0F, targetColor.getRGB());
-            // 外侧 glow
             RenderUtil.drawTriangleOutline(tipX, tipY, leftX - 0.5F, baseY + 0.5F, rightX + 0.5F, baseY + 0.5F, 4.0F,
                     new Color(targetColor.getRed(), targetColor.getGreen(), targetColor.getBlue(), 50).getRGB());
             RenderUtil.disableRenderState();
         }
 
-        // --- 文字层 ---
         GlStateManager.disableDepth();
         GlStateManager.enableBlend();
         GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
@@ -433,7 +443,6 @@ public class TargetHUD extends Module {
                     ColorUtil.darker(healthDeltaColor, 0.8F).getRGB(), this.shadow.getValue());
         }
 
-        // --- 头像 ---
         if (this.head.getValue() && this.headTexture != null) {
             GlStateManager.color(1.0F, 1.0F, 1.0F);
             mc.getTextureManager().bindTexture(this.headTexture);
