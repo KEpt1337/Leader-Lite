@@ -1,6 +1,7 @@
 package leader.util;
 
 import leader.enums.ChatColors;
+import leader.module.modules.render.FontManager;
 import leader.mixin.IAccessorEntityRenderer;
 import leader.mixin.IAccessorMinecraft;
 import leader.mixin.IAccessorRenderManager;
@@ -22,6 +23,7 @@ import net.minecraft.util.AxisAlignedBB;
 import net.minecraft.util.BlockPos;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.Vec3;
+import net.minecraft.client.shader.Framebuffer;
 import org.lwjgl.opengl.Display;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.util.glu.GLU;
@@ -138,11 +140,11 @@ public class RenderUtil {
     }
     public static void drawOutlinedString(String text, float x, float y) {
         String string2 = text.replaceAll("(?i)§[\\da-f]", "");
-        RenderUtil.mc.fontRendererObj.drawString(string2, x + 1.0f, y, 0, false);
-        RenderUtil.mc.fontRendererObj.drawString(string2, x - 1.0f, y, 0, false);
-        RenderUtil.mc.fontRendererObj.drawString(string2, x, y + 1.0f, 0, false);
-        RenderUtil.mc.fontRendererObj.drawString(string2, x, y - 1.0f, 0, false);
-        RenderUtil.mc.fontRendererObj.drawString(text, x, y, -1, false);
+        FontManager.drawString(string2, x + 1.0f, y, 0, false);
+        FontManager.drawString(string2, x - 1.0f, y, 0, false);
+        FontManager.drawString(string2, x, y + 1.0f, 0, false);
+        FontManager.drawString(string2, x, y - 1.0f, 0, false);
+        FontManager.drawString(text, x, y, -1, false);
     }
 
     public static void renderEnchantmentText(ItemStack itemStack, float x, float y, float scale) {
@@ -326,6 +328,133 @@ public class RenderUtil {
         GL11.glVertex2f(centerX + length * (float) Math.cos(f6), centerY + length * (float) Math.sin(f6));
         GL11.glEnd();
         GL11.glDisable(GL11.GL_POLYGON_SMOOTH);
+        GlStateManager.resetColor();
+    }
+
+    /** 渲染填充三角形（无边框） */
+    public static void drawFilledTriangle(float x1, float y1, float x2, float y2, float x3, float y3, int color) {
+        if (color == 0) return;
+        setColor(color);
+        GL11.glEnable(GL11.GL_POLYGON_SMOOTH);
+        GL11.glHint(GL11.GL_POLYGON_SMOOTH_HINT, GL11.GL_NICEST);
+        GL11.glBegin(GL11.GL_TRIANGLES);
+        GL11.glVertex2f(x1, y1);
+        GL11.glVertex2f(x2, y2);
+        GL11.glVertex2f(x3, y3);
+        GL11.glEnd();
+        GL11.glDisable(GL11.GL_POLYGON_SMOOTH);
+        GlStateManager.resetColor();
+    }
+
+    /** 渲染三角形边框 */
+    public static void drawTriangleOutline(float x1, float y1, float x2, float y2, float x3, float y3, float lineWidth, int color) {
+        if (color == 0) return;
+        setColor(color);
+        GL11.glLineWidth(lineWidth);
+        GL11.glEnable(GL11.GL_LINE_SMOOTH);
+        GL11.glHint(GL11.GL_LINE_SMOOTH_HINT, GL11.GL_NICEST);
+        GL11.glBegin(GL11.GL_LINE_LOOP);
+        GL11.glVertex2f(x1, y1);
+        GL11.glVertex2f(x2, y2);
+        GL11.glVertex2f(x3, y3);
+        GL11.glEnd();
+        GL11.glDisable(GL11.GL_LINE_SMOOTH);
+        GL11.glLineWidth(2.0f);
+        GlStateManager.resetColor();
+    }
+
+    /** 渲染渐变色三角形（顶点颜色 → 底边颜色） */
+    public static void drawGradientTriangle(float tipX, float tipY, float leftX, float leftY, float rightX, float rightY, int tipColor, int baseColor) {
+        float ta = (tipColor >> 24 & 0xFF) / 255.0F;
+        float tr = (tipColor >> 16 & 0xFF) / 255.0F;
+        float tg = (tipColor >> 8 & 0xFF) / 255.0F;
+        float tb = (tipColor & 0xFF) / 255.0F;
+        float ba = (baseColor >> 24 & 0xFF) / 255.0F;
+        float br = (baseColor >> 16 & 0xFF) / 255.0F;
+        float bg = (baseColor >> 8 & 0xFF) / 255.0F;
+        float bb = (baseColor & 0xFF) / 255.0F;
+        GL11.glEnable(GL11.GL_POLYGON_SMOOTH);
+        GL11.glHint(GL11.GL_POLYGON_SMOOTH_HINT, GL11.GL_NICEST);
+        GL11.glBegin(GL11.GL_TRIANGLES);
+        GL11.glColor4f(tr, tg, tb, ta);
+        GL11.glVertex2f(tipX, tipY);
+        GL11.glColor4f(br, bg, bb, ba);
+        GL11.glVertex2f(leftX, leftY);
+        GL11.glColor4f(br, bg, bb, ba);
+        GL11.glVertex2f(rightX, rightY);
+        GL11.glEnd();
+        GL11.glDisable(GL11.GL_POLYGON_SMOOTH);
+        GlStateManager.resetColor();
+    }
+
+    /** 沿三角形周长绘制分段进度条 —— 从底边左端点顺时针填充
+     *  @param x0,y0  底边左端点
+     *  @param x1,y1  顶点
+     *  @param x2,y2  底边右端点
+     *  @param progress  0.0~1.0
+     *  @param lineWidth  线宽
+     *  @param filledColor  已填充颜色
+     *  @param emptyColor   未填充颜色  */
+    public static void drawTriangleProgressBorder(
+            float x0, float y0, float x1, float y1, float x2, float y2,
+            float progress, float lineWidth, int filledColor, int emptyColor) {
+
+        float e0 = (float) Math.sqrt((x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0)); // 左腰
+        float e1 = (float) Math.sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1)); // 右腰
+        float e2 = (float) Math.sqrt((x0 - x2) * (x0 - x2) + (y0 - y2) * (y0 - y2)); // 底边
+        float total = e0 + e1 + e2;
+        float filled = total * Math.min(Math.max(progress, 0.0F), 1.0F);
+
+        float[] px = {x0, x1, x2};
+        float[] py = {y0, y1, y2};
+        float[] lens = {e0, e1, e2};
+
+        float remaining = filled;
+        float cx = x0, cy = y0;
+
+        GL11.glLineWidth(lineWidth);
+        GL11.glEnable(GL11.GL_LINE_SMOOTH);
+        GL11.glHint(GL11.GL_LINE_SMOOTH_HINT, GL11.GL_NICEST);
+
+        for (int i = 0; i < 3; i++) {
+            float nx = px[(i + 1) % 3];
+            float ny = py[(i + 1) % 3];
+
+            if (remaining <= 0.0F) {
+                setColor(emptyColor);
+                GL11.glBegin(GL11.GL_LINES);
+                GL11.glVertex2f(cx, cy);
+                GL11.glVertex2f(nx, ny);
+                GL11.glEnd();
+            } else if (remaining >= lens[i]) {
+                setColor(filledColor);
+                GL11.glBegin(GL11.GL_LINES);
+                GL11.glVertex2f(cx, cy);
+                GL11.glVertex2f(nx, ny);
+                GL11.glEnd();
+                remaining -= lens[i];
+            } else {
+                float t = remaining / lens[i];
+                float ix = cx + (nx - cx) * t;
+                float iy = cy + (ny - cy) * t;
+                setColor(filledColor);
+                GL11.glBegin(GL11.GL_LINES);
+                GL11.glVertex2f(cx, cy);
+                GL11.glVertex2f(ix, iy);
+                GL11.glEnd();
+                setColor(emptyColor);
+                GL11.glBegin(GL11.GL_LINES);
+                GL11.glVertex2f(ix, iy);
+                GL11.glVertex2f(nx, ny);
+                GL11.glEnd();
+                remaining = 0.0F;
+            }
+            cx = nx;
+            cy = ny;
+        }
+
+        GL11.glDisable(GL11.GL_LINE_SMOOTH);
+        GL11.glLineWidth(2.0F);
         GlStateManager.resetColor();
     }
 
@@ -624,5 +753,35 @@ public class RenderUtil {
             this.put(61, new EnchantmentData("LoS", 3));
             this.put(62, new EnchantmentData("Lu", 3));
         }
+    }
+
+    public static void setAlphaLimit(float limit) {
+        GlStateManager.enableAlpha();
+        GlStateManager.alphaFunc(GL11.GL_GREATER, (float) (limit * .01));
+    }
+
+    public static Framebuffer createFrameBuffer(Framebuffer framebuffer) {
+        return createFrameBuffer(framebuffer, false);
+    }
+
+    public static Framebuffer createFrameBuffer(Framebuffer framebuffer, boolean depth) {
+        if (framebuffer == null || framebuffer.framebufferWidth != mc.displayWidth || framebuffer.framebufferHeight != mc.displayHeight) {
+            if (framebuffer != null) {
+                framebuffer.deleteFramebuffer();
+            }
+            framebuffer = new Framebuffer(mc.displayWidth, mc.displayHeight, depth);
+            framebuffer.setFramebufferFilter(GL11.GL_LINEAR);
+        }
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, framebuffer.framebufferTexture);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL11.GL_CLAMP);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL11.GL_CLAMP);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, 0);
+        return framebuffer;
+    }
+
+    public static void bindTexture(int texture) {
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, texture);
     }
 }

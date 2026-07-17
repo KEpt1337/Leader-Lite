@@ -7,7 +7,7 @@ public class BetterFPS extends Module {
     public BetterFPS() {
         super("BetterFPS", false);
     }
-    public static BooleanProperty betterFont = new BooleanProperty("BetterFont",true);
+    public static BooleanProperty betterFont = new BooleanProperty("BetterFont",false);
     public static BooleanProperty fastLoad = new BooleanProperty("FastLoad", true);
     public static boolean using = false;
     @Override

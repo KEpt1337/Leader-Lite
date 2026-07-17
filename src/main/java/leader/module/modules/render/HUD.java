@@ -11,11 +11,14 @@ import leader.mixin.IAccessorGuiChat;
 import leader.module.Module;
 import leader.util.ColorUtil;
 import leader.util.RenderUtil;
+import leader.util.shader.KawaseBlur;
+import leader.util.shader.ShaderElement;
 import leader.property.properties.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiChat;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.shader.Framebuffer;
 import org.lwjgl.opengl.GL11;
 
 import java.awt.*;
@@ -51,6 +54,12 @@ public class HUD extends Module {
     public final BooleanProperty blinkTimer = new BooleanProperty("blink-timer", true);
     public final BooleanProperty toggleSound = new BooleanProperty("toggle-sounds", true);
     public final BooleanProperty toggleAlerts = new BooleanProperty("toggle-alerts", false);
+    public final BooleanProperty bgColor = new BooleanProperty("bg-color", false);
+    public final BooleanProperty glow = new BooleanProperty("glow", false);
+    public final BooleanProperty blur = new BooleanProperty("blur", false);
+    public final IntProperty blurIterations = new IntProperty("blur-iterations", 2, 1, 8);
+    public final IntProperty blurOffset = new IntProperty("blur-offset", 3, 1, 10);
+    private Framebuffer blurStencil;
 
     private String getModuleName(Module module) {
         String moduleName = module.getName();
@@ -77,13 +86,18 @@ public class HUD extends Module {
     }
 
     private int calculateStringWidth(String string, String[] arr) {
-        int width = mc.fontRendererObj.getStringWidth(string);
+        int width = FontManager.getStringWidth(string);
         if (this.suffixes.getValue()) {
             for (String str : arr) {
-                width += 3 + mc.fontRendererObj.getStringWidth(str);
+                width += 3 + FontManager.getStringWidth(str);
             }
         }
         return width;
+    }
+
+    private static int setAlpha(int color, float alpha) {
+        int a = (int) (alpha * 255.0F);
+        return (color & 0xFFFFFF) | (a << 24);
     }
 
     private float getColorCycle(long long3, long long4) {
@@ -150,6 +164,90 @@ public class HUD extends Module {
         }
     }
 
+    private void drawGlowEdge(float x1, float y1, float x2, float y2, int color, int passes) {
+        float step = 0.6F;
+        for (int i = passes; i >= 1; i--) {
+            float expand = i * step;
+            float t = (float) (passes - i + 1) / (float) passes;
+            float alpha = 0.07F * t * t;
+            RenderUtil.drawRect(x1 - expand, y1 - expand, x2 + expand, y2 + expand, setAlpha(color, alpha));
+        }
+    }
+
+    private void drawGlowEdgeNoBottom(float x1, float y1, float x2, float y2, int color, int passes) {
+        float step = 0.6F;
+        for (int i = passes; i >= 1; i--) {
+            float expand = i * step;
+            float t = (float) (passes - i + 1) / (float) passes;
+            float alpha = 0.07F * t * t;
+            RenderUtil.drawRect(x1 - expand, y1 - expand, x2 + expand, y2, setAlpha(color, alpha));
+        }
+    }
+
+    private void drawGlowEdgeNoTop(float x1, float y1, float x2, float y2, int color, int passes) {
+        float step = 0.6F;
+        for (int i = passes; i >= 1; i--) {
+            float expand = i * step;
+            float t = (float) (passes - i + 1) / (float) passes;
+            float alpha = 0.07F * t * t;
+            RenderUtil.drawRect(x1 - expand, y1, x2 + expand, y2 + expand, setAlpha(color, alpha));
+        }
+    }
+
+    private void drawGlowEdgeSides(float x1, float y1, float x2, float y2, int color, int passes) {
+        float step = 0.6F;
+        for (int i = passes; i >= 1; i--) {
+            float expand = i * step;
+            float t = (float) (passes - i + 1) / (float) passes;
+            float alpha = 0.07F * t * t;
+            RenderUtil.drawRect(x1 - expand, y1, x2 + expand, y2, setAlpha(color, alpha));
+        }
+    }
+
+    private void drawGlowBar(float x1, float y1, float x2, float y2, int color, int passes) {
+        float step = 0.4F;
+        for (int i = passes; i >= 1; i--) {
+            float expand = i * step;
+            float t = (float) (passes - i + 1) / (float) passes;
+            float alpha = 0.08F * t * t;
+            RenderUtil.drawRect(x1 - expand, y1 - expand, x2 + expand, y2 + expand, setAlpha(color, alpha));
+        }
+    }
+
+    public void drawBlur() {
+        blurStencil = ShaderElement.createFrameBuffer(blurStencil);
+        blurStencil.framebufferClear();
+        blurStencil.bindFramebuffer(false);
+        for (Runnable runnable : ShaderElement.getTasks()) {
+            runnable.run();
+        }
+        ShaderElement.getTasks().clear();
+        blurStencil.unbindFramebuffer();
+        KawaseBlur.renderBlur(blurStencil.framebufferTexture, blurIterations.getValue(), blurOffset.getValue());
+    }
+
+    public void clearBlurTasks() {
+        ShaderElement.getTasks().clear();
+    }
+
+    private void drawGlowText(String text, float x, float y, int color, int passes, float spread) {
+        for (int i = passes; i >= 1; i--) {
+            float offset = i * spread;
+            float t = (float) (passes - i + 1) / (float) passes;
+            float alpha = 0.18F * t * t;
+            int glowCol = setAlpha(color, alpha);
+            float d = offset * 0.7F;
+            FontManager.drawString(text, x + offset, y, glowCol, false);
+            FontManager.drawString(text, x - offset, y, glowCol, false);
+            FontManager.drawString(text, x, y + offset, glowCol, false);
+            FontManager.drawString(text, x, y - offset, glowCol, false);
+            FontManager.drawString(text, x + d, y + d, glowCol, false);
+            FontManager.drawString(text, x - d, y + d, glowCol, false);
+            FontManager.drawString(text, x + d, y - d, glowCol, false);
+            FontManager.drawString(text, x - d, y - d, glowCol, false);
+        }
+    }
+
     @EventTarget
     public void onRender2D(Render2DEvent event) {
         if (this.chatOutline.getValue() && mc.currentScreen instanceof GuiChat) {
@@ -169,7 +267,7 @@ public class HUD extends Module {
             }
         }
         if (this.isEnabled() && !mc.gameSettings.showDebugInfo) {
-            float height = (float) mc.fontRendererObj.FONT_HEIGHT - 1.0F;
+            float height = (float) FontManager.getFontHeight() - 1.0F;
             float x = (float) this.offsetX.getValue()
                     + (1.0F + (this.showBar.getValue() ? (this.shadow.getValue() ? 2.0F : 1.0F) : 0.0F)) * this.scale.getValue();
             float y = (float) this.offsetY.getValue() + 1.0F * this.scale.getValue();
@@ -187,80 +285,134 @@ public class HUD extends Module {
                 String moduleName = this.getModuleName(module);
                 String[] moduleSuffix = this.getModuleSuffix(module);
                 float totalWidth = (float) (this.calculateStringWidth(moduleName, moduleSuffix) - (this.shadow.getValue() ? 0 : 1));
-                int color = this.getColor(l, offset).getRGB();
+                Color themeColor = this.getColor(l, offset);
+                int color = themeColor.getRGB();
+                float sx = x / this.scale.getValue();
+                float sy = y / this.scale.getValue();
+                float bgX1 = sx - 1.0F - (this.posX.getValue() == 0 ? 0.0F : totalWidth);
+                float bgY1 = sy - (this.posY.getValue() == 0 ? (offset == 0L ? 1.0F : 0.0F) : (this.shadow.getValue() ? 1.0F : 0.0F));
+                float bgX2 = sx + 1.0F + (this.posX.getValue() == 0 ? totalWidth : 0.0F);
+                float bgY2 = sy + height + (this.posY.getValue() == 0 ? (this.shadow.getValue() ? 1.0F : 0.0F) : (offset == 0L ? 1.0F : 0.0F));
+                float textX = sx - (this.posX.getValue() == 1 ? totalWidth : 0.0F);
+                float textY = sy;
+                boolean hasBg = this.background.getValue() > 0;
+                boolean useThemeBg = this.bgColor.getValue();
+                int bgAlphaColor;
+                if (useThemeBg) {
+                    bgAlphaColor = new Color(themeColor.getRed(), themeColor.getGreen(), themeColor.getBlue(), (int) (this.background.getValue().floatValue() / 100.0F * 255.0F)).getRGB();
+                } else {
+                    bgAlphaColor = new Color(0.0F, 0.0F, 0.0F, this.background.getValue().floatValue() / 100.0F).getRGB();
+                }
+                int glowColor = useThemeBg ? color : themeColor.getRGB();
+
+                if (hasBg && this.blur.getValue()) {
+                    final float blurX1 = bgX1;
+                    final float blurY1 = bgY1;
+                    final float blurX2 = bgX2;
+                    final float blurY2 = bgY2;
+                    ShaderElement.addBlurTask(() -> {
+                        RenderUtil.enableRenderState();
+                        RenderUtil.drawRect(blurX1, blurY1, blurX2, blurY2, -1);
+                        RenderUtil.disableRenderState();
+                    });
+                }
+
+                if (hasBg && this.glow.getValue()) {
+                    RenderUtil.enableRenderState();
+                    if (offset == 0) {
+                        drawGlowEdgeNoBottom(bgX1, bgY1, bgX2, bgY2, glowColor, 8);
+                    } else if (offset == this.activeModules.size() - 1) {
+                        drawGlowEdgeNoTop(bgX1, bgY1, bgX2, bgY2, glowColor, 8);
+                    } else {
+                        drawGlowEdgeSides(bgX1, bgY1, bgX2, bgY2, glowColor, 8);
+                    }
+                    RenderUtil.disableRenderState();
+                }
+
                 RenderUtil.enableRenderState();
-                if (this.background.getValue() > 0) {
-                    RenderUtil.drawRect(
-                            x / this.scale.getValue() - 1.0F - (this.posX.getValue() == 0 ? 0.0F : totalWidth),
-                            y / this.scale.getValue() - (this.posY.getValue() == 0 ? (offset == 0L ? 1.0F : 0.0F) : (this.shadow.getValue() ? 1.0F : 0.0F)),
-                            x / this.scale.getValue() + 1.0F + (this.posX.getValue() == 0 ? totalWidth : 0.0F),
-                            y / this.scale.getValue() + height + (this.posY.getValue() == 0 ? (this.shadow.getValue() ? 1.0F : 0.0F) : (offset == 0L ? 1.0F : 0.0F)),
-                            new Color(0.0F, 0.0F, 0.0F, this.background.getValue().floatValue() / 100.0F).getRGB()
-                    );
+                if (hasBg) {
+                    RenderUtil.drawRect(bgX1, bgY1, bgX2, bgY2, bgAlphaColor);
                 }
                 if (this.showBar.getValue()) {
                     if (this.shadow.getValue()) {
+                        if (this.glow.getValue()) {
+                            float barShadowX1 = sx + (this.posX.getValue() == 0 ? -3.0F : 1.0F);
+                            float barShadowY1 = sy - (this.posY.getValue() == 0 ? (offset == 0L ? 1.0F : 0.0F) : 1.0F);
+                            float barShadowX2 = sx + (this.posX.getValue() == 0 ? -2.0F : 2.0F);
+                            float barShadowY2 = sy + height + (this.posY.getValue() == 0 ? 1.0F : (offset == 0L ? 1.0F : 0.0F));
+                            drawGlowBar(barShadowX1, barShadowY1, barShadowX2, barShadowY2, glowColor, 5);
+                        }
                         RenderUtil.drawRect(
-                                x / this.scale.getValue() + (this.posX.getValue() == 0 ? -3.0F : 1.0F),
-                                y / this.scale.getValue() - (this.posY.getValue() == 0 ? (offset == 0L ? 1.0F : 0.0F) : 1.0F),
-                                x / this.scale.getValue() + (this.posX.getValue() == 0 ? -2.0F : 2.0F),
-                                y / this.scale.getValue() + height + (this.posY.getValue() == 0 ? 1.0F : (offset == 0L ? 1.0F : 0.0F)),
+                                sx + (this.posX.getValue() == 0 ? -3.0F : 1.0F),
+                                sy - (this.posY.getValue() == 0 ? (offset == 0L ? 1.0F : 0.0F) : 1.0F),
+                                sx + (this.posX.getValue() == 0 ? -2.0F : 2.0F),
+                                sy + height + (this.posY.getValue() == 0 ? 1.0F : (offset == 0L ? 1.0F : 0.0F)),
                                 color
                         );
                         RenderUtil.drawRect(
-                                x / this.scale.getValue() + (this.posX.getValue() == 0 ? -2.0F : 2.0F),
-                                y / this.scale.getValue() - (this.posY.getValue() == 0 ? (offset == 0L ? 1.0F : 0.0F) : 1.0F),
-                                x / this.scale.getValue() + (this.posX.getValue() == 0 ? -1.0F : 3.0F),
-                                y / this.scale.getValue() + height + (this.posY.getValue() == 0 ? 1.0F : (offset == 0L ? 1.0F : 0.0F)),
+                                sx + (this.posX.getValue() == 0 ? -2.0F : 2.0F),
+                                sy - (this.posY.getValue() == 0 ? (offset == 0L ? 1.0F : 0.0F) : 1.0F),
+                                sx + (this.posX.getValue() == 0 ? -1.0F : 3.0F),
+                                sy + height + (this.posY.getValue() == 0 ? 1.0F : (offset == 0L ? 1.0F : 0.0F)),
                                 (color & 16579836) >> 2 | color & 0xFF000000
                         );
                     } else {
+                        if (this.glow.getValue()) {
+                            float barX1 = sx + (this.posX.getValue() == 0 ? -2.0F : 1.0F);
+                            float barY1 = sy - (this.posY.getValue() == 0 ? (offset == 0L ? 1.0F : 0.0F) : 0.0F);
+                            float barX2 = sx + (this.posX.getValue() == 0 ? -1.0F : 2.0F);
+                            float barY2 = sy + height + (this.posY.getValue() == 0 ? 0.0F : (offset == 0L ? 1.0F : 0.0F));
+                            drawGlowBar(barX1, barY1, barX2, barY2, glowColor, 5);
+                        }
                         RenderUtil.drawRect(
-                                x / this.scale.getValue() + (this.posX.getValue() == 0 ? -2.0F : 1.0F),
-                                y / this.scale.getValue() - (this.posY.getValue() == 0 ? (offset == 0L ? 1.0F : 0.0F) : 0.0F),
-                                x / this.scale.getValue() + (this.posX.getValue() == 0 ? -1.0F : 2.0F),
-                                y / this.scale.getValue() + height + (this.posY.getValue() == 0 ? 0.0F : (offset == 0L ? 1.0F : 0.0F)),
+                                sx + (this.posX.getValue() == 0 ? -2.0F : 1.0F),
+                                sy - (this.posY.getValue() == 0 ? (offset == 0L ? 1.0F : 0.0F) : 0.0F),
+                                sx + (this.posX.getValue() == 0 ? -1.0F : 2.0F),
+                                sy + height + (this.posY.getValue() == 0 ? 0.0F : (offset == 0L ? 1.0F : 0.0F)),
                                 color
                         );
                     }
                 }
                 RenderUtil.disableRenderState();
                 GlStateManager.disableDepth();
+
+                if (this.glow.getValue()) {
+                    drawGlowText(moduleName, textX, textY, glowColor, 6, 1.0F);
+                }
                 if (this.shadow.getValue()) {
-                    mc.fontRendererObj
-                            .drawStringWithShadow(moduleName, x / this.scale.getValue() - (this.posX.getValue() == 1 ? totalWidth : 0.0F), y / this.scale.getValue(), color);
+                    FontManager.drawStringWithShadow(moduleName, textX, textY, color);
                 } else {
-                    mc.fontRendererObj
-                            .drawString(
+                    FontManager.drawString(
                                     moduleName,
-                                    x / this.scale.getValue() - (this.posX.getValue() == 1 ? totalWidth : 0.0F),
-                                    y / this.scale.getValue() + (this.posY.getValue() == 1 ? 1.0F : 0.0F),
+                                    textX,
+                                    textY + (this.posY.getValue() == 1 ? 1.0F : 0.0F),
                                     color,
                                     false
                             );
                 }
                 if (this.suffixes.getValue() && moduleSuffix.length > 0) {
-                    float width = (float) mc.fontRendererObj.getStringWidth(moduleName) + 3.0F;
+                    float suffixX = (float) FontManager.getStringWidth(moduleName) + 3.0F;
                     for (String string : moduleSuffix) {
+                        if (this.glow.getValue()) {
+                            drawGlowText(string, textX + suffixX, textY, ChatColors.GRAY.toAwtColor(), 3, 0.5F);
+                        }
                         if (this.shadow.getValue()) {
-                            mc.fontRendererObj
-                                    .drawStringWithShadow(
+                            FontManager.drawStringWithShadow(
                                             string,
-                                            x / this.scale.getValue() - (this.posX.getValue() == 1 ? totalWidth : 0.0F) + width,
-                                            y / this.scale.getValue(),
+                                            textX + suffixX,
+                                            textY,
                                             ChatColors.GRAY.toAwtColor()
                                     );
                         } else {
-                            mc.fontRendererObj
-                                    .drawString(
+                            FontManager.drawString(
                                             string,
-                                            x / this.scale.getValue() - (this.posX.getValue() == 1 ? totalWidth : 0.0F) + width,
-                                            y / this.scale.getValue() + (this.posY.getValue() == 1 ? 1.0F : 0.0F),
+                                            textX + suffixX,
+                                            textY + (this.posY.getValue() == 1 ? 1.0F : 0.0F),
                                             ChatColors.GRAY.toAwtColor(),
                                             false
                                     );
                         }
-                        width += (float) mc.fontRendererObj.getStringWidth(string) + (this.shadow.getValue() ? 3.0F : 2.0F);
+                        suffixX += (float) FontManager.getStringWidth(string) + (this.shadow.getValue() ? 3.0F : 2.0F);
                     }
                 }
                 y += (height + (this.shadow.getValue() ? 1.0F : 0.0F)) * this.scale.getValue() * (this.posY.getValue() == 0 ? 1.0F : -1.0F);
@@ -273,11 +425,10 @@ public class HUD extends Module {
                     if (movementPacketSize > 0L) {
                         GlStateManager.enableBlend();
                         GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-                        mc.fontRendererObj
-                                .drawString(
+                        FontManager.drawString(
                                         String.valueOf(movementPacketSize),
                                         (float) new ScaledResolution(mc).getScaledWidth() / 2.0F / this.scale.getValue()
-                                                - (float) mc.fontRendererObj.getStringWidth(String.valueOf(movementPacketSize)) / 2.0F,
+                                                - (float) FontManager.getStringWidth(String.valueOf(movementPacketSize)) / 2.0F,
                                         (float) new ScaledResolution(mc).getScaledHeight() / 5.0F * 3.0F / this.scale.getValue(),
                                         this.getColor(l, offset).getRGB() & 16777215 | -1090519040,
                                         this.shadow.getValue()

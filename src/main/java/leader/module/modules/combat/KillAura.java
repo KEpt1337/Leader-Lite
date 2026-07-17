@@ -486,8 +486,8 @@ public class KillAura extends Module {
                                                     }
                                                     PacketUtil.sendPacket(new C09PacketHeldItemChange(randomSlot));
                                                     PacketUtil.sendPacket(new C09PacketHeldItemChange(mc.thePlayer.inventory.currentItem));
-                                                    this.stopBlock();
                                                 }
+                                                this.stopBlock();
                                             }
                                             if (test.getValue()){
                                                 if (testAttackTick >= moreAttackDelay.getValue()){

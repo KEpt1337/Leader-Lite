@@ -32,7 +32,6 @@ public class ColorSliderComponent implements Component {
         int x = parentModule.category.getX() + 4;
         int y = parentModule.category.getY() + offsetY;
         int width = parentModule.category.getWidth() - 8;
-        // 标题（原样）
         GL11.glPushMatrix();
         GL11.glScaled(0.5, 0.5, 0.5);
         Minecraft.getMinecraft().fontRendererObj.drawStringWithShadow(property.getName().replace("-", " ") + ": " + ChatColors.formatColor(property.formatValue()),

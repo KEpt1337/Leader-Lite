@@ -5,6 +5,7 @@ import leader.event.EventManager;
 import leader.events.StrafeEvent;
 import leader.management.RotationState;
 import leader.module.modules.movement.Jesus;
+import leader.module.modules.render.Animations;
 import net.minecraft.client.entity.EntityPlayerSP;
 import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.entity.Entity;
@@ -13,8 +14,10 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @SideOnly(Side.CLIENT)
 @Mixin(value = {EntityLivingBase.class}, priority = 9999)
@@ -29,8 +32,22 @@ public abstract class MixinEntityLivingBase extends MixinEntity {
                 ? RotationState.getSmoothedYaw() * (float) (Math.PI / 180.0)
                 : float1;
     }
+    @Inject(method = "getArmSwingAnimationEnd", at = @At("HEAD"), cancellable = true)
+    private void adjustSwingDuration(CallbackInfoReturnable<Integer> cir) {
+        if (Leader.moduleManager == null) return;
 
-    @Redirect(
+        Animations animations = (Animations) Leader.moduleManager.modules.get(Animations.class);
+        if (animations == null || !animations.isEnabled()) return;
+
+        float speed = animations.swingSpeed.getValue();
+        if (speed == 1.0F) return;
+
+        if (speed < 0.1F) speed = 0.1F; // 防止除零
+
+        int newDuration = Math.max(1, Math.round(6.0F / speed));
+    }
+
+        @Redirect(
             method = {"moveEntityWithHeading"},
             at = @At(
                     value = "INVOKE",

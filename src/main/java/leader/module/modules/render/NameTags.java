@@ -164,7 +164,7 @@ public class NameTags extends Module {
                                 }
                         }
                         String color = ChatColors.formatColor(String.format("%s&f%s&r%s", distanceText, teamName, healText));
-                        int width = mc.fontRendererObj.getStringWidth(color);
+                        int width = FontManager.getStringWidth(color);
                         if (this.backgroundOpacity.getValue() > 0) {
                             Color textColor = !entity.isSneaking() && !entity.isInvisible()
                                     ? new Color(0.0F, 0.0F, 0.0F, (float) this.backgroundOpacity.getValue() / 100.0F)
@@ -172,7 +172,7 @@ public class NameTags extends Module {
                             RenderUtil.enableRenderState();
                             RenderUtil.drawRect(
                                     (float) (-width) / 2.0F - 1.0F,
-                                    (float) (-mc.fontRendererObj.FONT_HEIGHT) - 1.0F,
+                                    (float) (-FontManager.getFontHeight()) - 1.0F,
                                     (float) width / 2.0F + (this.shadow.getValue() ? 1.0F : 0.0F),
                                     this.shadow.getValue() ? 0.0F : -1.0F,
                                     textColor.getRGB()
@@ -180,17 +180,16 @@ public class NameTags extends Module {
                             RenderUtil.disableRenderState();
                         }
                         GlStateManager.disableDepth();
-                        mc.fontRendererObj
-                                .drawString(
+                        FontManager.drawString(
                                         color,
                                         (float) (-width) / 2.0F,
-                                        (float) (-mc.fontRendererObj.FONT_HEIGHT),
+                                        (float) (-FontManager.getFontHeight()),
                                         ColorUtil.getHealthBlend(percent).getRGB(),
                                         this.shadow.getValue()
                                 );
                         GlStateManager.enableDepth();
                         if (entity instanceof EntityPlayer) {
-                            int height = mc.fontRendererObj.FONT_HEIGHT + 2;
+                            int height = FontManager.getFontHeight() + 2;
                             if (this.armor.getValue()) {
                                 ArrayList<ItemStack> renderingItems = new ArrayList<>();
                                 for (int i = 4; i >= 0; i--) {
@@ -231,7 +230,7 @@ public class NameTags extends Module {
                             if (TeamUtil.isFriend((EntityPlayer) entity)) {
                                 RenderUtil.enableRenderState();
                                 float x1 = (float) (-width) / 2.0F - 1.0F;
-                                view = (float) (-mc.fontRendererObj.FONT_HEIGHT) - 1.0F;
+                                view = (float) (-FontManager.getFontHeight()) - 1.0F;
                                 float y1 = (float) width / 2.0F + 1.0F;
                                 float offset = this.shadow.getValue() ? 0.0F : -1.0F;
                                 int friendColor = Leader.friendManager.getColor().getRGB();
@@ -240,7 +239,7 @@ public class NameTags extends Module {
                             } else if (TeamUtil.isTarget((EntityPlayer) entity)) {
                                 RenderUtil.enableRenderState();
                                 float x1 = (float) (-width) / 2.0F - 1.0F;
-                                view = (float) (-mc.fontRendererObj.FONT_HEIGHT) - 1.0F;
+                                view = (float) (-FontManager.getFontHeight()) - 1.0F;
                                 float y1 = (float) width / 2.0F + 1.0F;
                                 float offset = this.shadow.getValue() ? 0.0F : -1.0F;
                                 int targetColor = Leader.targetManager.getColor().getRGB();

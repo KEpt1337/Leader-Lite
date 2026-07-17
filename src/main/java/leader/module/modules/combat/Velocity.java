@@ -100,63 +100,66 @@ public class Velocity extends Module {
     }
     @EventTarget
     public void onKnockback(KnockbackEvent event) {
-            if (!allowNext || !(Boolean) fakeCheck.getValue()) {
+        if (!allowNext || !(Boolean) fakeCheck.getValue()) {
+            allowNext = true;
+            if (pendingExplosion) {
+                if (mode.getValue() == 0) {
+                    pendingExplosion = false;
+                    if (explosionHorizontal.getValue() > 0) {
+                        event.setX(event.getX() * (double) explosionHorizontal.getValue() / 100.0);
+                        event.setZ(event.getZ() * (double) explosionHorizontal.getValue() / 100.0);
+                    } else {
+                        event.setX(mc.thePlayer.motionX);
+                        event.setZ(mc.thePlayer.motionZ);
+                    }
+                    if (explosionVertical.getValue() > 0) {
+                        event.setY(event.getY() * (double) explosionVertical.getValue() / 100.0);
+                    } else {
+                        event.setY(mc.thePlayer.motionY);
+                    }
+                }
+            } else {
+                if (!isEnabled() || event.isCancelled()) {
+                    pendingExplosion = false;
                     allowNext = true;
-                if (pendingExplosion) {
+                    return;
+                }
+                if (this.mode.getValue() == 1 && this.rotate.getValue() && event.getY() > 0.0) {
+                    this.knockbackX = event.getX();
+                    this.knockbackZ = event.getZ();
+                    if (Math.abs(this.knockbackX) > 0.01 || Math.abs(this.knockbackZ) > 0.01) {
+                        this.rotatoTickCounter = 1;
+                    }
+                }
+                if (mode.getValue() == 1 && smartTimes.getValue()){
+                    hitCount = computeReduceTicks((int) event.getX(), (int) event.getZ());
+                }
+                if (delay.getValue() && !groundDelay.getValue() && mc.thePlayer.onGround){
+                    if (jump.getValue() && this.mode.getValue() == 1){
+                        jumpFlag = true;
+                    }
+                    ticksSinceVelocity = 0;
+                }
+                if (!delay.getValue())ticksSinceVelocity = 0;
+                chanceCounter = chanceCounter % 100 + chance.getValue();
+                if (chanceCounter >= 100) {
                     if (mode.getValue() == 0) {
-                        pendingExplosion = false;
-                        if (explosionHorizontal.getValue() > 0) {
-                            event.setX(event.getX() * (double) explosionHorizontal.getValue() / 100.0);
-                            event.setZ(event.getZ() * (double) explosionHorizontal.getValue() / 100.0);
+                        if (horizontal.getValue() > 0) {
+                            event.setX(event.getX() * (double) horizontal.getValue() / 100.0);
+                            event.setZ(event.getZ() * (double) horizontal.getValue() / 100.0);
                         } else {
                             event.setX(mc.thePlayer.motionX);
                             event.setZ(mc.thePlayer.motionZ);
                         }
-                        if (explosionVertical.getValue() > 0) {
-                            event.setY(event.getY() * (double) explosionVertical.getValue() / 100.0);
+                        if (vertical.getValue() > 0) {
+                            event.setY(event.getY() * (double) vertical.getValue() / 100.0);
                         } else {
                             event.setY(mc.thePlayer.motionY);
                         }
                     }
-                } else {
-                    if (!isEnabled() || event.isCancelled()) {
-                        pendingExplosion = false;
-                        allowNext = true;
-                        return;
-                    }
-                    if (this.mode.getValue() == 1 && this.rotate.getValue() && event.getY() > 0.0) {
-                        this.knockbackX = event.getX();
-                        this.knockbackZ = event.getZ();
-                        if (Math.abs(this.knockbackX) > 0.01 || Math.abs(this.knockbackZ) > 0.01) {
-                            this.rotatoTickCounter = 1;
-                        }
-                    }
-                    if (mode.getValue() == 1 && smartTimes.getValue()){
-                        hitCount = computeReduceTicks((int) event.getX(), (int) event.getZ());
-                    }
-                    if (delay.getValue() && !groundDelay.getValue() && mc.thePlayer.onGround){
-                        ticksSinceVelocity = 0;
-                    }
-                    if (!delay.getValue())ticksSinceVelocity = 0;
-                    chanceCounter = chanceCounter % 100 + chance.getValue();
-                    if (chanceCounter >= 100) {
-                        if (mode.getValue() == 0) {
-                            if (horizontal.getValue() > 0) {
-                                event.setX(event.getX() * (double) horizontal.getValue() / 100.0);
-                                event.setZ(event.getZ() * (double) horizontal.getValue() / 100.0);
-                            } else {
-                                event.setX(mc.thePlayer.motionX);
-                                event.setZ(mc.thePlayer.motionZ);
-                            }
-                            if (vertical.getValue() > 0) {
-                                event.setY(event.getY() * (double) vertical.getValue() / 100.0);
-                            } else {
-                                event.setY(mc.thePlayer.motionY);
-                            }
-                        }
-                    }
                 }
             }
+        }
 
     }
 
@@ -184,18 +187,6 @@ public class Velocity extends Module {
             }
             if (ticksSinceVelocity >= 10) {
                 ticksSinceVelocity = -1;
-            }
-            if (jump.getValue() && this.mode.getValue() == 1){
-                handleJumpReset();
-            }
-        }
-    }
-    private void handleJumpReset() {
-        Scaffold scaffold = (Scaffold) Leader.moduleManager.getModule(Scaffold.class);
-        if (mc.thePlayer == null || mc.currentScreen instanceof GuiInventory || scaffold.isEnabled()) return;
-        if (ticksSinceVelocity >= 0) {
-            if (ticksSinceVelocity <= 1 && mc.thePlayer.onGround) {
-                jumpFlag = true;
             }
         }
     }
@@ -320,6 +311,9 @@ public class Velocity extends Module {
                     dbg(Leader.clientName + "Delay/Buffer " + Leader.delayManager.getDelay() + " Ticks");
                     Leader.delayManager.setDelayState(false, DelayModules.VELOCITY);
                     delayFlag = false;
+                    if (jump.getValue() && this.mode.getValue() == 1){
+                        jumpFlag = true;
+                    }
                 }
             }
         }

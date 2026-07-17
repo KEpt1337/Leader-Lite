@@ -143,9 +143,9 @@ public class Radar extends Module {
             GlStateManager.enableTexture2D();
             GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
             GlStateManager.scale(hud.scale.getValue() / 2, hud.scale.getValue() / 2, 1.0f);
-            mc.fontRendererObj.drawString("PVP",
-                    (float) (px - mc.fontRendererObj.getStringWidth("PVP") / 2.0F),
-                    (float) (py - mc.fontRendererObj.FONT_HEIGHT / 2.0F),
+            FontManager.drawString("PVP",
+                    (float) (px - FontManager.getStringWidth("PVP") / 2.0F),
+                    (float) (py - FontManager.getFontHeight() / 2.0F),
                     Color.WHITE.getRGB(), hud.shadow.getValue());
             GlStateManager.popMatrix();
         }
@@ -216,21 +216,21 @@ public class Radar extends Module {
             GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
             HUD hud = (HUD) Leader.moduleManager.modules.get(HUD.class);
             int color = hud.getColor(System.currentTimeMillis()).getRGB();
-            mc.fontRendererObj.drawString("N",
-                    (float) (x - dx1 * (radius + 5)) - mc.fontRendererObj.getStringWidth("N") / 2.0F,
-                    (float) (y - dy1 * (radius + 5)) - mc.fontRendererObj.FONT_HEIGHT / 2.0F,
+            FontManager.drawString("N",
+                    (float) (x - dx1 * (radius + 5)) - FontManager.getStringWidth("N") / 2.0F,
+                    (float) (y - dy1 * (radius + 5)) - FontManager.getFontHeight() / 2.0F,
                     color, hud.shadow.getValue());
-            mc.fontRendererObj.drawString("E",
-                    (float) (x + dx2 * (radius + 5)) - mc.fontRendererObj.getStringWidth("E") / 2.0F,
-                    (float) (y + dy2 * (radius + 5)) - mc.fontRendererObj.FONT_HEIGHT / 2.0F,
+            FontManager.drawString("E",
+                    (float) (x + dx2 * (radius + 5)) - FontManager.getStringWidth("E") / 2.0F,
+                    (float) (y + dy2 * (radius + 5)) - FontManager.getFontHeight() / 2.0F,
                     color, hud.shadow.getValue());
-            mc.fontRendererObj.drawString("S",
-                    (float) (x + dx1 * (radius + 5)) - mc.fontRendererObj.getStringWidth("S") / 2.0F,
-                    (float) (y + dy1 * (radius + 5)) - mc.fontRendererObj.FONT_HEIGHT / 2.0F,
+            FontManager.drawString("S",
+                    (float) (x + dx1 * (radius + 5)) - FontManager.getStringWidth("S") / 2.0F,
+                    (float) (y + dy1 * (radius + 5)) - FontManager.getFontHeight() / 2.0F,
                     color, hud.shadow.getValue());
-            mc.fontRendererObj.drawString("W",
-                    (float) (x - dx2 * (radius + 5)) - mc.fontRendererObj.getStringWidth("W") / 2.0F,
-                    (float) (y - dy2 * (radius + 5)) - mc.fontRendererObj.FONT_HEIGHT / 2.0F,
+            FontManager.drawString("W",
+                    (float) (x - dx2 * (radius + 5)) - FontManager.getStringWidth("W") / 2.0F,
+                    (float) (y - dy2 * (radius + 5)) - FontManager.getFontHeight() / 2.0F,
                     color, hud.shadow.getValue());
             GlStateManager.disableTexture2D();
             GlStateManager.disableBlend();

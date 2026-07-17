@@ -62,20 +62,19 @@ public class Leader {
         EventManager.register(lagManager);
         EventManager.register(moduleManager);
         EventManager.register(commandManager);
+        moduleManager.modules.put(Animations.class, new Animations());
         moduleManager.modules.put(AimAssist.class, new AimAssist());
         moduleManager.modules.put(AntiAFK.class, new AntiAFK());
         moduleManager.modules.put(AntiDebuff.class, new AntiDebuff());
         moduleManager.modules.put(AntiFireball.class, new AntiFireball());
-        moduleManager.modules.put(SmartAttack.class, new SmartAttack());
         moduleManager.modules.put(AntiObbyTrap.class, new AntiObbyTrap());
         moduleManager.modules.put(AntiObfuscate.class, new AntiObfuscate());
         moduleManager.modules.put(AntiVoid.class, new AntiVoid());
         moduleManager.modules.put(AutoClicker.class, new AutoClicker());
-        moduleManager.modules.put(AutoAnduril.class, new AutoAnduril());
         moduleManager.modules.put(AutoHeal.class, new AutoHeal());
         moduleManager.modules.put(AutoTool.class, new AutoTool());
         moduleManager.modules.put(BetterFPS.class, new BetterFPS());
-        moduleManager.modules.put(BedNuker.class, new BedNuker());
+        moduleManager.modules.put(BlockHit.class,new BlockHit());
         moduleManager.modules.put(BedESP.class, new BedESP());
         moduleManager.modules.put(BedTracker.class, new BedTracker());
         moduleManager.modules.put(Blink.class, new Blink());
@@ -87,6 +86,7 @@ public class Leader {
         moduleManager.modules.put(FastPlace.class, new FastPlace());
         moduleManager.modules.put(Stuck.class, new Stuck());
         moduleManager.modules.put(Fly.class, new Fly());
+        moduleManager.modules.put(FontManager.class, new FontManager());
         moduleManager.modules.put(FullBright.class, new FullBright());
         moduleManager.modules.put(GhostHand.class, new GhostHand());
         moduleManager.modules.put(GuiModule.class, new GuiModule());
@@ -94,7 +94,8 @@ public class Leader {
         moduleManager.modules.put(MoreKB.class, new MoreKB());
         moduleManager.modules.put(Indicators.class, new Indicators());
         moduleManager.modules.put(InventoryClicker.class, new InventoryClicker());
-        moduleManager.modules.put(InvManager.class, new InvManager());
+        moduleManager.modules.put(BedNuker.class, new BedNuker());
+        moduleManager.modules.put(InvManager.class,new InvManager());
         moduleManager.modules.put(InvWalk.class, new InvWalk());
         moduleManager.modules.put(ItemESP.class, new ItemESP());
         moduleManager.modules.put(Jesus.class, new Jesus());
@@ -123,6 +124,7 @@ public class Leader {
         moduleManager.modules.put(Speed.class, new Speed());
         moduleManager.modules.put(SpeedMine.class, new SpeedMine());
         moduleManager.modules.put(Sprint.class, new Sprint());
+        moduleManager.modules.put(SmartAttack.class, new SmartAttack());
         moduleManager.modules.put(TargetHUD.class, new TargetHUD());
         moduleManager.modules.put(TargetStrafe.class, new TargetStrafe());
         moduleManager.modules.put(Tracers.class, new Tracers());

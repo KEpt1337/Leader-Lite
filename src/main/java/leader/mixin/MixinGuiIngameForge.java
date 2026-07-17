@@ -3,7 +3,10 @@ package leader.mixin;
 import leader.Leader;
 import leader.event.EventManager;
 import leader.events.Render2DEvent;
+import leader.module.modules.render.HUD;
 import leader.module.modules.render.NickHider;
+import leader.module.modules.render.TargetHUD;
+import leader.util.shader.ShaderElement;
 import net.minecraft.client.entity.EntityPlayerSP;
 import net.minecraftforge.client.GuiIngameForge;
 import net.minecraftforge.fml.relauncher.Side;
@@ -27,6 +30,19 @@ public abstract class MixinGuiIngameForge {
             )}
     )
     private void renderGameOverlay(float float1, CallbackInfo callbackInfo) {
+        if (Leader.moduleManager != null) {
+            HUD hud = (HUD) Leader.moduleManager.modules.get(HUD.class);
+            TargetHUD targetHud = (TargetHUD) Leader.moduleManager.modules.get(TargetHUD.class);
+            boolean hudBlur = hud != null && hud.isEnabled() && hud.blur.getValue();
+            boolean targetBlur = targetHud != null && targetHud.isEnabled() && targetHud.blur.getValue();
+            if (hudBlur || targetBlur) {
+                if (hud != null) {
+                    hud.drawBlur();
+                }
+            } else {
+                ShaderElement.getTasks().clear();
+            }
+        }
         EventManager.call(new Render2DEvent(float1));
     }
 
