@@ -2,6 +2,7 @@ package leader.module.modules.legit;
 
 import com.google.common.base.CaseFormat;
 import leader.Leader;
+import leader.util.RotationUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.item.ItemStack;
@@ -86,7 +87,7 @@ public class BlockHit extends Module {
                     reset();
                     return;
                 }
-                if (autoBlockRange.getValue() && mc.thePlayer.getDistanceToEntity(target) >= range.getValue()){
+                if (autoBlockRange.getValue() && RotationUtil.distanceToBox(target.getCollisionBoundingBox()) >= range.getValue()){
                     reset();
                     return;
                 }
