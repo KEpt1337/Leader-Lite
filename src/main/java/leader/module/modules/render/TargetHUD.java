@@ -52,6 +52,7 @@ public class TargetHUD extends Module {
     public final ModeProperty posX = new ModeProperty("position-x", 1, new String[]{"LEFT", "MIDDLE", "RIGHT"});
     public final ModeProperty posY = new ModeProperty("position-y", 1, new String[]{"TOP", "MIDDLE", "BOTTOM"});
     public final FloatProperty scale = new FloatProperty("scale", 1.0F, 0.5F, 1.5F);
+    public final FloatProperty fontScale = new FloatProperty("font-scale", 1.15F, 0.85F, 1.5F);
     public final IntProperty offX = new IntProperty("offset-x", 0, -255, 255);
     public final IntProperty offY = new IntProperty("offset-y", 40, -255, 255);
     public final PercentProperty background = new PercentProperty("background", 25);
@@ -60,7 +61,7 @@ public class TargetHUD extends Module {
     public final BooleanProperty indicator = new BooleanProperty("indicator", true, () -> this.mode.getValue() != 2);
     public final BooleanProperty outline = new BooleanProperty("outline", false, () -> this.mode.getValue() != 2);
     public final BooleanProperty animations = new BooleanProperty("animations", true, () -> this.mode.getValue() != 2);
-    public final BooleanProperty shadow = new BooleanProperty("shadow", true);
+    public final BooleanProperty shadow = new BooleanProperty("shadow", false);
     public final BooleanProperty kaOnly = new BooleanProperty("ka-only", true);
     public final BooleanProperty chatPreview = new BooleanProperty("chat-preview", false);
     public final BooleanProperty blur = new BooleanProperty("blur", false, () -> this.mode.getValue() == 2);
@@ -135,6 +136,43 @@ public class TargetHUD extends Module {
         RenderUtil.drawLine(x1, y2, x1, y1, width, color);
     }
 
+    private float getTextScale() {
+        return this.fontScale.getValue();
+    }
+
+    private float getTextWidth(String text) {
+        return FontManager.getStringWidth(text) * this.getTextScale();
+    }
+
+    private float getTextHeight() {
+        return FontManager.getFontHeight() * this.getTextScale();
+    }
+
+    private void drawText(String text, float x, float y, int color) {
+        float textScale = this.getTextScale();
+        GlStateManager.pushMatrix();
+        GlStateManager.translate(x, y, 0.0F);
+        GlStateManager.scale(textScale, textScale, 1.0F);
+        FontManager.drawString(text, 0.0F, 0.0F, color, this.shadow.getValue());
+        GlStateManager.popMatrix();
+    }
+
+    private float getCardHeight() {
+        return Math.max(27.0F, this.getTextHeight() * 2.0F + 9.0F);
+    }
+
+    private float getTextTop() {
+        return 2.0F;
+    }
+
+    private float getSecondTextY() {
+        return this.getTextTop() + this.getTextHeight() + 2.0F;
+    }
+
+    private float getHealthBarY() {
+        return this.getCardHeight() - 5.0F;
+    }
+
     @EventTarget
     public void onRender(Render2DEvent event) {
         if (this.isEnabled() && mc.thePlayer != null) {
@@ -170,17 +208,17 @@ public class TargetHUD extends Module {
                 Color healthDeltaColor = ColorUtil.getHealthBlend(healthDeltaRatio);
                 ScaledResolution scaledResolution = new ScaledResolution(mc);
                 String targetNameText = ChatColors.formatColor(String.format("&r%s&r", TeamUtil.stripName(this.target)));
-                int targetNameWidth = FontManager.getStringWidth(targetNameText);
+                float targetNameWidth = this.getTextWidth(targetNameText);
                 String healthText = ChatColors.formatColor(
                         String.format("&r&f%s%s❤&r", healthFormat.format(heal), abs > 0.0F ? "&6" : "&c")
                 );
-                int healthTextWidth = FontManager.getStringWidth(healthText);
+                float healthTextWidth = this.getTextWidth(healthText);
                 String statusText = ChatColors.formatColor(String.format("&r&l%s&r", heal == health ? "D" : (heal < health ? "W" : "L")));
-                int statusTextWidth = FontManager.getStringWidth(statusText);
+                float statusTextWidth = this.getTextWidth(statusText);
                 String healthDiffText = ChatColors.formatColor(
                         String.format("&r%s&r", heal == health ? "0.0" : diffFormat.format(health - heal))
                 );
-                int healthDiffWidth = FontManager.getStringWidth(healthDiffText);
+                float healthDiffWidth = this.getTextWidth(healthDiffText);
                 if (this.mode.getValue() == 2) {
                     renderBackground(scaledResolution, targetNameText, healthText,
                             targetNameWidth, healthTextWidth,
@@ -193,10 +231,12 @@ public class TargetHUD extends Module {
                             heal, health, abs);
                 } else {
                 float barContentWidth = Math.max(
-                        (float) targetNameWidth + (this.indicator.getValue() ? 2.0F + (float) statusTextWidth + 2.0F : 0.0F),
-                        (float) healthTextWidth + (this.indicator.getValue() ? 2.0F + (float) healthDiffWidth + 2.0F : 0.0F)
+                        targetNameWidth + (this.indicator.getValue() ? 2.0F + statusTextWidth + 2.0F : 0.0F),
+                        healthTextWidth + (this.indicator.getValue() ? 2.0F + healthDiffWidth + 2.0F : 0.0F)
                 );
-                float headIconOffset = this.head.getValue() && this.headTexture != null ? 25.0F : 0.0F;
+                float cardHeight = this.getCardHeight();
+                float headSize = Math.min(23.0F, cardHeight - 4.0F);
+                float headIconOffset = this.head.getValue() && this.headTexture != null ? headSize + 2.0F : 0.0F;
                 float barTotalWidth = Math.max(headIconOffset + 70.0F, headIconOffset + 2.0F + barContentWidth + 2.0F);
                 float posX = this.offX.getValue().floatValue() / this.scale.getValue();
                 switch (this.posX.getValue()) {
@@ -210,37 +250,39 @@ public class TargetHUD extends Module {
                 float posY = this.offY.getValue().floatValue() / this.scale.getValue();
                 switch (this.posY.getValue()) {
                     case 1:
-                        posY += (float) scaledResolution.getScaledHeight() / this.scale.getValue() / 2.0F - 13.5F;
+                        posY += (float) scaledResolution.getScaledHeight() / this.scale.getValue() / 2.0F - cardHeight / 2.0F;
                         break;
                     case 2:
                         posY *= -1.0F;
-                        posY += (float) scaledResolution.getScaledHeight() / this.scale.getValue() - 27.0F;
+                        posY += (float) scaledResolution.getScaledHeight() / this.scale.getValue() - cardHeight;
                 }
                 GlStateManager.pushMatrix();
                 GlStateManager.scale(this.scale.getValue(), this.scale.getValue(), 0.0F);
                 GlStateManager.translate(posX, posY, -450.0F);
                 RenderUtil.enableRenderState();
-                RenderUtil.drawRect(0.0F, 0.0F, barTotalWidth, 27.0F, this.getBackgroundColor());
+                RenderUtil.drawRect(0.0F, 0.0F, barTotalWidth, cardHeight, this.getBackgroundColor());
                 if (this.outline.getValue()) {
-                    this.drawOutline(0.0F, 0.0F, barTotalWidth, 27.0F, 1.5F, targetColor.getRGB());
+                    this.drawOutline(0.0F, 0.0F, barTotalWidth, cardHeight, 1.5F, targetColor.getRGB());
                 }
-                RenderUtil.drawRect(headIconOffset + 2.0F, 22.0F, barTotalWidth - 2.0F, 25.0F, ColorUtil.darker(healthBarColor, 0.2F).getRGB());
-                RenderUtil.drawRect(headIconOffset + 2.0F, 22.0F, headIconOffset + 2.0F + healthRatio * (barTotalWidth - 2.0F - headIconOffset - 2.0F), 25.0F, healthBarColor.getRGB());
+                float healthBarY = this.getHealthBarY();
+                RenderUtil.drawRect(headIconOffset + 2.0F, healthBarY, barTotalWidth - 2.0F, healthBarY + 3.0F, ColorUtil.darker(healthBarColor, 0.2F).getRGB());
+                RenderUtil.drawRect(headIconOffset + 2.0F, healthBarY, headIconOffset + 2.0F + healthRatio * (barTotalWidth - 2.0F - headIconOffset - 2.0F), healthBarY + 3.0F, healthBarColor.getRGB());
                 RenderUtil.disableRenderState();
                 GlStateManager.disableDepth();
                 GlStateManager.enableBlend();
                 GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-                FontManager.drawString(targetNameText, headIconOffset + 2.0F, 2.0F, -1, this.shadow.getValue());
-                FontManager.drawString(healthText, headIconOffset + 2.0F, 12.0F, -1, this.shadow.getValue());
+                this.drawText(targetNameText, headIconOffset + 2.0F, this.getTextTop(), -1);
+                this.drawText(healthText, headIconOffset + 2.0F, this.getSecondTextY(), -1);
                 if (this.indicator.getValue()) {
-                    FontManager.drawString(statusText, barTotalWidth - 2.0F - (float) statusTextWidth, 2.0F, healthDeltaColor.getRGB(), this.shadow.getValue());
-                    FontManager.drawString(healthDiffText, barTotalWidth - 2.0F - (float) healthDiffWidth, 12.0F, ColorUtil.darker(healthDeltaColor, 0.8F).getRGB(), this.shadow.getValue());
+                    this.drawText(statusText, barTotalWidth - 2.0F - statusTextWidth, this.getTextTop(), healthDeltaColor.getRGB());
+                    this.drawText(healthDiffText, barTotalWidth - 2.0F - healthDiffWidth, this.getSecondTextY(), ColorUtil.darker(healthDeltaColor, 0.8F).getRGB());
                 }
                 if (this.head.getValue() && this.headTexture != null) {
+                    float headY = (cardHeight - headSize) / 2.0F;
                     GlStateManager.color(1.0F, 1.0F, 1.0F);
                     mc.getTextureManager().bindTexture(this.headTexture);
-                    Gui.drawScaledCustomSizeModalRect(2, 2, 8.0F, 8.0F, 8, 8, 23, 23, 64.0F, 64.0F);
-                    Gui.drawScaledCustomSizeModalRect(2, 2, 40.0F, 8.0F, 8, 8, 23, 23, 64.0F, 64.0F);
+                    Gui.drawScaledCustomSizeModalRect(2, (int) headY, 8.0F, 8.0F, 8, 8, (int) headSize, (int) headSize, 64.0F, 64.0F);
+                    Gui.drawScaledCustomSizeModalRect(2, (int) headY, 40.0F, 8.0F, 8, 8, (int) headSize, (int) headSize, 64.0F, 64.0F);
                     GlStateManager.color(1.0F, 1.0F, 1.0F);
                 }
                 GlStateManager.disableBlend();
@@ -253,13 +295,14 @@ public class TargetHUD extends Module {
 
     private void renderBackground(ScaledResolution scaledResolution,
                                    String targetNameText, String healthText,
-                                   int targetNameWidth, int healthTextWidth,
+                                   float targetNameWidth, float healthTextWidth,
                                    float healthRatio, Color targetColor, Color healthBarColor,
                                    float heal, float playerHealth, float abs) {
         final float barWidth = 150.0F;
-        final float barHeight = 27.0F;
+        final float barHeight = this.getCardHeight();
+        final float headSize = Math.min(23.0F, barHeight - 4.0F);
         boolean hasHead = this.head.getValue() && this.headTexture != null;
-        float headIconOffset = hasHead ? 25.0F : 0.0F;
+        float headIconOffset = hasHead ? headSize + 2.0F : 0.0F;
 
         float posX = this.offX.getValue().floatValue() / this.scale.getValue();
         switch (this.posX.getValue()) {
@@ -315,19 +358,20 @@ public class TargetHUD extends Module {
         GlStateManager.enableBlend();
         GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
 
-        FontManager.drawString(targetNameText, headIconOffset + 2.0F, 2.0F, -1, this.shadow.getValue());
+        this.drawText(targetNameText, headIconOffset + 2.0F, this.getTextTop(), -1);
 
         String displayHealth = ChatColors.formatColor(String.format("&r&f%s&r", healthFormat.format(heal)));
         if (abs > 0.0F) {
             displayHealth = displayHealth + ChatColors.formatColor(String.format(" &6%s&r", healthFormat.format(abs)));
         }
-        FontManager.drawString(displayHealth, headIconOffset + 2.0F, 12.0F, -1, this.shadow.getValue());
+        this.drawText(displayHealth, headIconOffset + 2.0F, this.getSecondTextY(), -1);
 
         if (hasHead) {
+            float headY = (barHeight - headSize) / 2.0F;
             GlStateManager.color(1.0F, 1.0F, 1.0F);
             mc.getTextureManager().bindTexture(this.headTexture);
-            Gui.drawScaledCustomSizeModalRect(2, 2, 8.0F, 8.0F, 8, 8, 23, 23, 64.0F, 64.0F);
-            Gui.drawScaledCustomSizeModalRect(2, 2, 40.0F, 8.0F, 8, 8, 23, 23, 64.0F, 64.0F);
+            Gui.drawScaledCustomSizeModalRect(2, (int) headY, 8.0F, 8.0F, 8, 8, (int) headSize, (int) headSize, 64.0F, 64.0F);
+            Gui.drawScaledCustomSizeModalRect(2, (int) headY, 40.0F, 8.0F, 8, 8, (int) headSize, (int) headSize, 64.0F, 64.0F);
             GlStateManager.color(1.0F, 1.0F, 1.0F);
         }
 
@@ -338,11 +382,12 @@ public class TargetHUD extends Module {
 
     private void renderTriangle(ScaledResolution scaledResolution,
                                 String targetNameText, String healthText, String statusText, String healthDiffText,
-                                int targetNameWidth, int healthTextWidth, int statusTextWidth, int healthDiffWidth,
+                                float targetNameWidth, float healthTextWidth, float statusTextWidth, float healthDiffWidth,
                                 float healthRatio, Color targetColor, Color healthBarColor, Color healthDeltaColor,
                                 float heal, float playerHealth, float abs) {
         final float baseWidth = 150.0F;
-        final float height = 85.0F;
+        final float textHeight = this.getTextHeight();
+        final float height = Math.max(85.0F, 48.0F + textHeight * 2.0F);
         final float halfBase = baseWidth / 2.0F;
         final float headSize = 20.0F;
         final float barLineWidth = 3.5F;
@@ -411,17 +456,17 @@ public class TargetHUD extends Module {
         GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
 
         final float nameY = tipY + 38.0F;
-        final float infoY = tipY + 52.0F;
+        final float infoY = nameY + textHeight + 2.0F;
         final float hwName = halfBase * (nameY - tipY) / height;
         final float hwInfo = halfBase * (infoY - tipY) / height;
         final float textMargin = 5.0F;
 
-        FontManager.drawString(targetNameText,
-                tipX - hwName + textMargin, nameY, -1, this.shadow.getValue());
+        this.drawText(targetNameText,
+                tipX - hwName + textMargin, nameY, -1);
         if (this.indicator.getValue()) {
-            FontManager.drawString(statusText,
-                    tipX + hwName - textMargin - (float) statusTextWidth, nameY,
-                    healthDeltaColor.getRGB(), this.shadow.getValue());
+            this.drawText(statusText,
+                    tipX + hwName - textMargin - statusTextWidth, nameY,
+                    healthDeltaColor.getRGB());
         }
 
         String finalHealthText = ChatColors.formatColor(
@@ -429,18 +474,18 @@ public class TargetHUD extends Module {
                         new DecimalFormat("0.0", new DecimalFormatSymbols(Locale.US)).format(heal),
                         abs > 0.0F ? "&6" : "&c")
         );
-        FontManager.drawString(finalHealthText,
-                tipX - hwInfo + textMargin, infoY, -1, this.shadow.getValue());
+        this.drawText(finalHealthText,
+                tipX - hwInfo + textMargin, infoY, -1);
         if (this.indicator.getValue()) {
             String diffStr = ChatColors.formatColor(
                     String.format("&r%s&r", heal == playerHealth ? "0.0"
                             : new DecimalFormat("+0.0;-0.0", new DecimalFormatSymbols(Locale.US))
                                     .format(playerHealth - heal))
             );
-            int diffW = FontManager.getStringWidth(diffStr);
-            FontManager.drawString(diffStr,
-                    tipX + hwInfo - textMargin - (float) diffW, infoY,
-                    ColorUtil.darker(healthDeltaColor, 0.8F).getRGB(), this.shadow.getValue());
+            float diffW = this.getTextWidth(diffStr);
+            this.drawText(diffStr,
+                    tipX + hwInfo - textMargin - diffW, infoY,
+                    ColorUtil.darker(healthDeltaColor, 0.8F).getRGB());
         }
 
         if (this.head.getValue() && this.headTexture != null) {

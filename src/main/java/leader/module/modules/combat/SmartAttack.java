@@ -37,6 +37,7 @@ public class SmartAttack extends Module {
             if (mc.thePlayer.onGround && onGround.getValue())shouldCancel = true;
             if (mc.thePlayer.motionY >= 0 && onRising.getValue())shouldCancel = true;
             if (target.hurtTime <= 2)shouldCancel = false;
+            if (target.isBurning())shouldCancel = false;
             if (mc.thePlayer.hurtTime > stopHurtTime.getValue())shouldCancel = false;
         }
     }

@@ -164,53 +164,25 @@ public class HUD extends Module {
         }
     }
 
-    private void drawGlowEdge(float x1, float y1, float x2, float y2, int color, int passes) {
-        float step = 0.6F;
+    private void drawGlowOutline(float x1, float y1, float x2, float y2, int color, int passes, float step,
+                                 boolean top, boolean bottom, boolean left, boolean right) {
         for (int i = passes; i >= 1; i--) {
             float expand = i * step;
-            float t = (float) (passes - i + 1) / (float) passes;
-            float alpha = 0.07F * t * t;
-            RenderUtil.drawRect(x1 - expand, y1 - expand, x2 + expand, y2 + expand, setAlpha(color, alpha));
-        }
-    }
+            float intensity = (float) (passes - i + 1) / (float) passes;
+            int glowColor = setAlpha(color, 0.045F * intensity * intensity);
 
-    private void drawGlowEdgeNoBottom(float x1, float y1, float x2, float y2, int color, int passes) {
-        float step = 0.6F;
-        for (int i = passes; i >= 1; i--) {
-            float expand = i * step;
-            float t = (float) (passes - i + 1) / (float) passes;
-            float alpha = 0.07F * t * t;
-            RenderUtil.drawRect(x1 - expand, y1 - expand, x2 + expand, y2, setAlpha(color, alpha));
-        }
-    }
-
-    private void drawGlowEdgeNoTop(float x1, float y1, float x2, float y2, int color, int passes) {
-        float step = 0.6F;
-        for (int i = passes; i >= 1; i--) {
-            float expand = i * step;
-            float t = (float) (passes - i + 1) / (float) passes;
-            float alpha = 0.07F * t * t;
-            RenderUtil.drawRect(x1 - expand, y1, x2 + expand, y2 + expand, setAlpha(color, alpha));
-        }
-    }
-
-    private void drawGlowEdgeSides(float x1, float y1, float x2, float y2, int color, int passes) {
-        float step = 0.6F;
-        for (int i = passes; i >= 1; i--) {
-            float expand = i * step;
-            float t = (float) (passes - i + 1) / (float) passes;
-            float alpha = 0.07F * t * t;
-            RenderUtil.drawRect(x1 - expand, y1, x2 + expand, y2, setAlpha(color, alpha));
-        }
-    }
-
-    private void drawGlowBar(float x1, float y1, float x2, float y2, int color, int passes) {
-        float step = 0.4F;
-        for (int i = passes; i >= 1; i--) {
-            float expand = i * step;
-            float t = (float) (passes - i + 1) / (float) passes;
-            float alpha = 0.08F * t * t;
-            RenderUtil.drawRect(x1 - expand, y1 - expand, x2 + expand, y2 + expand, setAlpha(color, alpha));
+            if (top) {
+                RenderUtil.drawRect(x1 - expand, y1 - expand, x2 + expand, y1, glowColor);
+            }
+            if (bottom) {
+                RenderUtil.drawRect(x1 - expand, y2, x2 + expand, y2 + expand, glowColor);
+            }
+            if (left) {
+                RenderUtil.drawRect(x1 - expand, y1, x1, y2, glowColor);
+            }
+            if (right) {
+                RenderUtil.drawRect(x2, y1, x2 + expand, y2, glowColor);
+            }
         }
     }
 
@@ -233,18 +205,17 @@ public class HUD extends Module {
     private void drawGlowText(String text, float x, float y, int color, int passes, float spread) {
         for (int i = passes; i >= 1; i--) {
             float offset = i * spread;
-            float t = (float) (passes - i + 1) / (float) passes;
-            float alpha = 0.18F * t * t;
-            int glowCol = setAlpha(color, alpha);
-            float d = offset * 0.7F;
-            FontManager.drawString(text, x + offset, y, glowCol, false);
-            FontManager.drawString(text, x - offset, y, glowCol, false);
-            FontManager.drawString(text, x, y + offset, glowCol, false);
-            FontManager.drawString(text, x, y - offset, glowCol, false);
-            FontManager.drawString(text, x + d, y + d, glowCol, false);
-            FontManager.drawString(text, x - d, y + d, glowCol, false);
-            FontManager.drawString(text, x + d, y - d, glowCol, false);
-            FontManager.drawString(text, x - d, y - d, glowCol, false);
+            float intensity = (float) (passes - i + 1) / (float) passes;
+            int glowColor = setAlpha(color, 0.10F * intensity * intensity);
+            float diagonal = offset * 0.65F;
+            FontManager.drawString(text, x + offset, y, glowColor, false);
+            FontManager.drawString(text, x - offset, y, glowColor, false);
+            FontManager.drawString(text, x, y + offset, glowColor, false);
+            FontManager.drawString(text, x, y - offset, glowColor, false);
+            FontManager.drawString(text, x + diagonal, y + diagonal, glowColor, false);
+            FontManager.drawString(text, x - diagonal, y + diagonal, glowColor, false);
+            FontManager.drawString(text, x + diagonal, y - diagonal, glowColor, false);
+            FontManager.drawString(text, x - diagonal, y - diagonal, glowColor, false);
         }
     }
 
@@ -318,14 +289,14 @@ public class HUD extends Module {
                 }
 
                 if (hasBg && this.glow.getValue()) {
+                    boolean firstRow = offset == 0L;
+                    boolean lastRow = offset == this.activeModules.size() - 1;
+                    boolean outerLeft = this.posX.getValue() == 1;
                     RenderUtil.enableRenderState();
-                    if (offset == 0) {
-                        drawGlowEdgeNoBottom(bgX1, bgY1, bgX2, bgY2, glowColor, 8);
-                    } else if (offset == this.activeModules.size() - 1) {
-                        drawGlowEdgeNoTop(bgX1, bgY1, bgX2, bgY2, glowColor, 8);
-                    } else {
-                        drawGlowEdgeSides(bgX1, bgY1, bgX2, bgY2, glowColor, 8);
-                    }
+                    drawGlowOutline(
+                            bgX1, bgY1, bgX2, bgY2, glowColor, 6, 0.5F,
+                            firstRow, lastRow, outerLeft, !outerLeft
+                    );
                     RenderUtil.disableRenderState();
                 }
 
@@ -340,7 +311,7 @@ public class HUD extends Module {
                             float barShadowY1 = sy - (this.posY.getValue() == 0 ? (offset == 0L ? 1.0F : 0.0F) : 1.0F);
                             float barShadowX2 = sx + (this.posX.getValue() == 0 ? -2.0F : 2.0F);
                             float barShadowY2 = sy + height + (this.posY.getValue() == 0 ? 1.0F : (offset == 0L ? 1.0F : 0.0F));
-                            drawGlowBar(barShadowX1, barShadowY1, barShadowX2, barShadowY2, glowColor, 5);
+                            drawGlowOutline(barShadowX1, barShadowY1, barShadowX2, barShadowY2, glowColor, 4, 0.35F, true, true, true, true);
                         }
                         RenderUtil.drawRect(
                                 sx + (this.posX.getValue() == 0 ? -3.0F : 1.0F),
@@ -362,7 +333,7 @@ public class HUD extends Module {
                             float barY1 = sy - (this.posY.getValue() == 0 ? (offset == 0L ? 1.0F : 0.0F) : 0.0F);
                             float barX2 = sx + (this.posX.getValue() == 0 ? -1.0F : 2.0F);
                             float barY2 = sy + height + (this.posY.getValue() == 0 ? 0.0F : (offset == 0L ? 1.0F : 0.0F));
-                            drawGlowBar(barX1, barY1, barX2, barY2, glowColor, 5);
+                            drawGlowOutline(barX1, barY1, barX2, barY2, glowColor, 4, 0.35F, true, true, true, true);
                         }
                         RenderUtil.drawRect(
                                 sx + (this.posX.getValue() == 0 ? -2.0F : 1.0F),
@@ -377,7 +348,7 @@ public class HUD extends Module {
                 GlStateManager.disableDepth();
 
                 if (this.glow.getValue()) {
-                    drawGlowText(moduleName, textX, textY, glowColor, 6, 1.0F);
+                    drawGlowText(moduleName, textX, textY, glowColor, 4, 0.65F);
                 }
                 if (this.shadow.getValue()) {
                     FontManager.drawStringWithShadow(moduleName, textX, textY, color);
@@ -394,7 +365,7 @@ public class HUD extends Module {
                     float suffixX = (float) FontManager.getStringWidth(moduleName) + 3.0F;
                     for (String string : moduleSuffix) {
                         if (this.glow.getValue()) {
-                            drawGlowText(string, textX + suffixX, textY, ChatColors.GRAY.toAwtColor(), 3, 0.5F);
+                            drawGlowText(string, textX + suffixX, textY, ChatColors.GRAY.toAwtColor(), 2, 0.35F);
                         }
                         if (this.shadow.getValue()) {
                             FontManager.drawStringWithShadow(

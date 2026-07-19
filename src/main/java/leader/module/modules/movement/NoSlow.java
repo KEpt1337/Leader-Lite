@@ -2,15 +2,18 @@ package leader.module.modules.movement;
 
 import com.google.common.base.CaseFormat;
 import io.netty.buffer.Unpooled;
+import leader.mixin.IAccessorPlayerControllerMP;
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.passive.EntityVillager;
 import net.minecraft.network.PacketBuffer;
+import net.minecraft.network.play.client.C07PacketPlayerDigging;
 import net.minecraft.network.play.client.C08PacketPlayerBlockPlacement;
 import net.minecraft.network.play.client.C09PacketHeldItemChange;
 import net.minecraft.network.play.client.C17PacketCustomPayload;
 import net.minecraft.util.BlockPos;
+import net.minecraft.util.EnumFacing;
 import scala.tools.nsc.backend.icode.Members;
 import leader.Leader;
 import leader.enums.BlinkModules;
@@ -122,6 +125,8 @@ public class NoSlow extends Module {
                             }
                             PacketUtil.sendPacket(new C09PacketHeldItemChange(randomSlot));
                             PacketUtil.sendPacket(new C09PacketHeldItemChange(mc.thePlayer.inventory.currentItem));
+                            PacketUtil.sendPacket(new C07PacketPlayerDigging(C07PacketPlayerDigging.Action.RELEASE_USE_ITEM, BlockPos.ORIGIN, EnumFacing.DOWN));
+                            mc.thePlayer.stopUsingItem();
                         }
                         delay = swapDelay.getValue();
                     }
@@ -136,19 +141,30 @@ public class NoSlow extends Module {
                         }
                         PacketUtil.sendPacket(new C09PacketHeldItemChange(randomSlot));
                         PacketUtil.sendPacket(new C09PacketHeldItemChange(mc.thePlayer.inventory.currentItem));
+                        PacketUtil.sendPacket(new C07PacketPlayerDigging(C07PacketPlayerDigging.Action.RELEASE_USE_ITEM, BlockPos.ORIGIN, EnumFacing.DOWN));
+                        mc.thePlayer.stopUsingItem();
                         blinkDelay = 0;
                     }
                     else {
                         if (!isKillAuraAutoBlocking() && blinkDelay == 0) {
-                            Leader.blinkManager.setBlinkState(false, BlinkModules.BLINK);
-                            Leader.blinkManager.setBlinkState(true, BlinkModules.BLINK);
+                            Leader.blinkManager.setBlinkState(false, BlinkModules.AUTO_BLOCK);
+                            ((IAccessorPlayerControllerMP) mc.playerController).callSyncCurrentPlayItem();
+                            PacketUtil.sendPacket(new C08PacketPlayerBlockPlacement(mc.thePlayer.getHeldItem()));
+                            mc.thePlayer.setItemInUse(mc.thePlayer.getHeldItem(),mc.thePlayer.getHeldItem().getMaxItemUseDuration());
+                            Leader.blinkManager.setBlinkState(true, BlinkModules.AUTO_BLOCK);
                         }
                         blinkDelay++;
                     }
                 }
             }
         }
-        else Leader.blinkManager.setBlinkState(false,BlinkModules.BLINK);
+        else
+        {
+            if (blinkDelay >= 0 && this.swordMode.getValue() == 2) {
+                Leader.blinkManager.setBlinkState(false, BlinkModules.AUTO_BLOCK);
+                blinkDelay = 0;
+            }
+        }
     }
     @EventTarget
     public void onLivingUpdate(LivingUpdateEvent event) {

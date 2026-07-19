@@ -4,6 +4,7 @@ import com.google.common.base.CaseFormat;
 import io.netty.buffer.Unpooled;
 import leader.Leader;
 import leader.module.modules.misc.AutoHeal;
+import leader.module.modules.movement.NoSlow;
 import leader.module.modules.player.BedNuker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.EntityOtherPlayerMP;
@@ -59,9 +60,9 @@ public class KillAura extends Module {
     public final ModeProperty mode;
     public final ModeProperty sort;
     public ModeProperty autoBlock;
-    private final BooleanProperty noStop = new BooleanProperty("NoStop",true,() -> this.autoBlock.getValue() == 2);
-    private final BooleanProperty test = new BooleanProperty("MoreAttack",false,() -> this.autoBlock.getValue() == 2);
-    private final IntProperty moreAttackDelay = new IntProperty("MoreAttackDelay",1,0,3,() -> this.autoBlock.getValue() == 2 && test.getValue());
+    private final BooleanProperty noStop = new BooleanProperty("NoSwap",true,() -> this.autoBlock.getValue() == 2);
+    private final BooleanProperty test = new BooleanProperty("MoreAttack",false,() -> this.autoBlock.getValue() == 2 || this.autoBlock.getValue() == 5);
+    private final IntProperty moreAttackDelay = new IntProperty("MoreAttackDelay",1,0,3,() -> (this.autoBlock.getValue() == 2 || this.autoBlock.getValue() == 5) && test.getValue());
     private final IntProperty maxTick = new IntProperty("MaxTick",3,1,5,() -> this.autoBlock.getValue() == 6);
     private final IntProperty startBlinkTick = new IntProperty("StartBlinkTick",0,1,5,() -> this.autoBlock.getValue() == 6);
     private final IntProperty stopBlinkTick = new IntProperty("StopBlinkTick",2,1,5,() -> this.autoBlock.getValue() == 6);
@@ -89,6 +90,7 @@ public class KillAura extends Module {
     public final BooleanProperty throughWalls;
     public final BooleanProperty requirePress;
     public final BooleanProperty allowMining;
+    public final BooleanProperty allowPlayerBlocking;
     public final BooleanProperty weaponsOnly;
     public final BooleanProperty allowTools;
     public final BooleanProperty inventoryCheck;
@@ -124,7 +126,7 @@ public class KillAura extends Module {
         this.sort = new ModeProperty("Sort", 0, new String[]{"Distance", "Health", "Hurt Time", "FOV"});
 
         this.autoBlock = new ModeProperty(
-                "AutoBlock", 0, new String[]{"None", "Vanilla", "Hypixel", "Legit", "Fake","Hypixel Long Blink","Hypixel Custom"}
+                "AutoBlock", 0, new String[]{"None", "Vanilla","Hypixel", "Legit", "Fake","Hypixel(Without Noslow)","Hypixel Custom"}
         );
         this.autoBlockRequirePress = new BooleanProperty("AutoBlock Require Press", false);
         this.autoBlockCPS = new IntProperty("AutoBlock Aps", 10, 1, 20);
@@ -142,6 +144,7 @@ public class KillAura extends Module {
         this.angleStep = new IntProperty("Angle Step", 90, 30, 180);
         this.throughWalls = new BooleanProperty("Through Walls", true);
         this.requirePress = new BooleanProperty("Require Press", false);
+        this.allowPlayerBlocking = new BooleanProperty("Allow Player Blocking", true);
         this.allowMining = new BooleanProperty("Allow Mining", false);
         this.weaponsOnly = new BooleanProperty("Weapons Only", false);
         this.allowTools = new BooleanProperty("Allow Tools", false, this.weaponsOnly::getValue);
@@ -422,7 +425,7 @@ public class KillAura extends Module {
                 Leader.blinkManager.setBlinkState(false, BlinkModules.AUTO_BLOCK);
                 this.fakeBlockState = false;
                 this.blockTick = 0;
-                if (autoBlock.getValue() == 2 && isBlocking) {
+                if (autoBlock.getValue() == 2 && isBlocking && Leader.moduleManager.getModule(NoSlow.class).isEnabled()) {
                     this.isBlocking = false;
                     stopBlock();
                 }
@@ -571,22 +574,30 @@ public class KillAura extends Module {
                                 if (!Leader.playerStateManager.digging && !Leader.playerStateManager.placing) {
                                     switch (this.blockTick) {
                                         case 0:
-                                            blocked = true;
+                                            Leader.blinkManager.setBlinkState(false,BlinkModules.AUTO_BLOCK);
                                             if (!this.isPlayerBlocking()) {
                                                 swap = true;
                                             }
                                             this.blockTick = 1;
                                             break;
                                         case 1:
+                                            Leader.blinkManager.setBlinkState(true,BlinkModules.AUTO_BLOCK);
                                             attack = false;
                                             blockTick = 2;
                                             break;
                                         case 2:
-                                            attack = false;
-                                            this.blockTick = 3;
-                                            break;
-                                        case 3:
-                                            attack = false;
+                                            if (this.isPlayerBlocking()) {
+                                                this.stopBlock();
+                                            }
+                                            if (test.getValue()){
+                                                if (testAttackTick >= moreAttackDelay.getValue()){
+                                                    testAttackTick = 0;
+                                                }
+                                                else {
+                                                    testAttackTick++;
+                                                    attack = false;
+                                                }
+                                            }
                                             this.blockTick = 0;
                                             break;
                                         default:
@@ -599,12 +610,6 @@ public class KillAura extends Module {
                                 Leader.blinkManager.setBlinkState(false, BlinkModules.AUTO_BLOCK);
                                 this.isBlocking = false;
                                 this.fakeBlockState = false;
-                                int randomSlot = new Random().nextInt(9);
-                                while (randomSlot == mc.thePlayer.inventory.currentItem) {
-                                    randomSlot = new Random().nextInt(9);
-                                }
-                                PacketUtil.sendPacket(new C09PacketHeldItemChange(randomSlot));
-                                PacketUtil.sendPacket(new C09PacketHeldItemChange(mc.thePlayer.inventory.currentItem));
                             }
                             break;
                         case 6:
@@ -968,7 +973,7 @@ public class KillAura extends Module {
         if (this.isBlocking) {
             event.setCancelled(true);
         } else {
-            if (this.isEnabled() && this.target != null && this.canAttack()) {
+            if (this.isEnabled() && this.target != null && this.canAttack() && !allowPlayerBlocking.getValue()) {
                 event.setCancelled(true);
             }
         }
@@ -1007,7 +1012,7 @@ public class KillAura extends Module {
         Velocity.extraAttacked = false;
         this.blockingState = false;
         this.fakeBlockState = false;
-        if (autoBlock.getValue() == 2 && isBlocking) {
+        if (autoBlock.getValue() == 2 && isBlocking && Leader.moduleManager.getModule(NoSlow.class).isEnabled()) {
             this.isBlocking = false;
             stopBlock();
         }

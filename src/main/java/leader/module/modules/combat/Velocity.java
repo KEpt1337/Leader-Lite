@@ -9,6 +9,7 @@ import leader.management.RotationState;
 import leader.mixin.IAccessorEntity;
 import leader.module.Module;
 import leader.module.modules.movement.LongJump;
+import leader.module.modules.movement.Stuck;
 import leader.module.modules.player.Scaffold;
 import leader.property.properties.BooleanProperty;
 import leader.property.properties.IntProperty;
@@ -338,6 +339,7 @@ public class Velocity extends Module {
                             && !delayFlag
                             && !isInLiquidOrWeb()
                             && !pendingExplosion
+                            && !Leader.moduleManager.getModule(Stuck.class).isEnabled()
                             && (!allowNext || !(Boolean) fakeCheck.getValue())
                             && (!longJump.isEnabled() || !longJump.canStartJump())) {
                         if ((airBuffer.getValue() && !mc.thePlayer.onGround) || (delay.getValue() && !mc.thePlayer.onGround) || (delay.getValue() && groundDelay.getValue() && !airBuffer.getValue())) {

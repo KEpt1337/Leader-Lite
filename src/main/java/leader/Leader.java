@@ -75,9 +75,11 @@ public class Leader {
         moduleManager.modules.put(AutoTool.class, new AutoTool());
         moduleManager.modules.put(BetterFPS.class, new BetterFPS());
         moduleManager.modules.put(BlockHit.class,new BlockHit());
+        moduleManager.modules.put(BackTrack.class,new BackTrack());
         moduleManager.modules.put(BedESP.class, new BedESP());
         moduleManager.modules.put(BedTracker.class, new BedTracker());
         moduleManager.modules.put(Blink.class, new Blink());
+        moduleManager.modules.put(BlinkSettings.class, new BlinkSettings());
         moduleManager.modules.put(Chams.class, new Chams());
         moduleManager.modules.put(ChestESP.class, new ChestESP());
         moduleManager.modules.put(ChestStealer.class, new ChestStealer());

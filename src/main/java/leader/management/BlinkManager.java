@@ -1,10 +1,12 @@
 package leader.management;
 
+import leader.Leader;
 import leader.enums.BlinkModules;
 import leader.event.EventTarget;
 import leader.event.types.EventType;
 import leader.events.PacketEvent;
 import leader.events.TickEvent;
+import leader.module.modules.player.BlinkSettings;
 import leader.util.PacketUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.Packet;
@@ -26,6 +28,8 @@ public class BlinkManager {
     public BlinkModules blinkModule = BlinkModules.NONE;
     public boolean blinking = false;
     public Deque<Packet<?>> blinkedPackets = new ConcurrentLinkedDeque<>();
+    private boolean slowReleasing = false;
+    private int slowReleaseTicks = 0;
 
     public boolean offerPacket(Packet<?> packet) {
         if (this.blinkModule == BlinkModules.NONE || packet instanceof C00PacketKeepAlive || packet instanceof C01PacketChatMessage) {
@@ -38,6 +42,11 @@ public class BlinkManager {
         }
     }
 
+    private BlinkSettings getBlinkSettings() {
+        if (Leader.moduleManager == null) return null;
+        return (BlinkSettings) Leader.moduleManager.modules.get(BlinkSettings.class);
+    }
+
     public boolean setBlinkState(boolean state, BlinkModules module) {
         if (module == BlinkModules.NONE) {
             return false;
@@ -45,12 +54,26 @@ public class BlinkManager {
         if (state) {
             this.blinkModule = module;
             this.blinking = true;
+            BlinkSettings settings = getBlinkSettings();
+            if (settings != null && settings.slowRelease.getValue() && settings.slowReleaseTime.getValue() == 0) {
+                this.slowReleasing = true;
+                this.slowReleaseTicks = 0;
+            }
         } else {
-            if(blinkModule != module){
+            if (blinkModule != module) {
                 return false;
             }
+            BlinkSettings settings = getBlinkSettings();
+            if (settings != null && settings.slowRelease.getValue() && settings.slowReleaseTime.getValue() == 1) {
+                this.blinking = false;
+                this.slowReleasing = true;
+                this.slowReleaseTicks = 0;
+                return true;
+            }
             this.blinking = false;
+            this.slowReleasing = false;
             if (Minecraft.getMinecraft().getNetHandler() != null && this.blinkedPackets.isEmpty()) {
+                this.blinkModule = BlinkModules.NONE;
                 return true;
             }
             for (Packet<?> blinkedPacket : blinkedPackets) {
@@ -89,8 +112,66 @@ public class BlinkManager {
     public void onTick(TickEvent event) {
         if (event.getType() == EventType.POST) {
             if (mc.thePlayer.isDead) {
+                this.slowReleasing = false;
                 this.setBlinkState(false, this.blinkModule);
             }
+            if (slowReleasing) {
+                processSlowRelease();
+            }
+        }
+    }
+
+    private void processSlowRelease() {
+        BlinkSettings settings = getBlinkSettings();
+        if (settings == null || !settings.slowRelease.getValue()) {
+            slowReleasing = false;
+            flushRemaining();
+            return;
+        }
+        slowReleaseTicks++;
+        if (slowReleaseTicks < settings.slowReleaseDelay.getValue()) {
+            return;
+        }
+        slowReleaseTicks = 0;
+        int maxTotal = settings.maxPacketsPerTick.getValue();
+        int maxC03 = settings.maxC03PacketsPerTick.getValue();
+        int released = 0;
+        int c03Released = 0;
+        int size = blinkedPackets.size();
+        for (int i = 0; i < size && released < maxTotal; i++) {
+            Packet<?> pkt = blinkedPackets.poll();
+            if (pkt == null) break;
+            if (pkt instanceof C03PacketPlayer) {
+                if (c03Released >= maxC03) {
+                    blinkedPackets.offer(pkt);
+                    continue;
+                }
+                c03Released++;
+            }
+            boolean wasBlinking = this.blinking;
+            this.blinking = false;
+            PacketUtil.sendPacketNoEvent(pkt);
+            this.blinking = wasBlinking;
+            released++;
+        }
+        if (blinkedPackets.isEmpty()) {
+            if (!blinking) {
+                slowReleasing = false;
+                this.blinkModule = BlinkModules.NONE;
+            }
+        }
+    }
+
+    private void flushRemaining() {
+        boolean wasBlinking = this.blinking;
+        this.blinking = false;
+        for (Packet<?> blinkedPacket : blinkedPackets) {
+            PacketUtil.sendPacketNoEvent(blinkedPacket);
+        }
+        this.blinking = wasBlinking;
+        blinkedPackets.clear();
+        if (!wasBlinking) {
+            this.blinkModule = BlinkModules.NONE;
         }
     }
 }
