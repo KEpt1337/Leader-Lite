@@ -49,10 +49,10 @@ public class Scaffold extends Module {
             0.90625,
             0.96875
     };
-    public final ModeProperty mode = new ModeProperty("Mode", 1, new String[]{"Normal", "Telly","Snap"});
-    public final ModeProperty rotationMode = new ModeProperty("Rotate Mode", 3, new String[]{"None", "Vanilla", "Backwards", "Prediction"});
+    public final ModeProperty mode = new ModeProperty("Mode", 1, new String[]{"Normal", "Telly", "Snap", "Legit"});
+    public final ModeProperty rotationMode = new ModeProperty("Rotate Mode", 3, new String[]{"None", "Vanilla", "Backwards", "Prediction"}, () -> mode.getValue() != 3);
     public final ModeProperty moveFix = new ModeProperty("Move Fix", 1, new String[]{"None", "Silent"});
-    public final IntProperty jumpDelay = new IntProperty("Jump Delay", 2, 0, 5,() -> mode.getValue() == 1);
+    public final IntProperty jumpDelay = new IntProperty("Jump Delay", 2, 0, 5, () -> mode.getValue() == 1);
     public final IntProperty placeDelay = new IntProperty("Place Delay", 1, 0, 5);
     public final FloatProperty startRotSpeed = new FloatProperty("Start Rotate Speed", 180.0F, 1.0F, 180.0F, () -> mode.getValue() == 1);
     public final FloatProperty normalRotSpeed = new FloatProperty("Normal Rotate Speed", 180.0F, 1.0F, 180.0F, () -> mode.getValue() == 1);
@@ -60,7 +60,7 @@ public class Scaffold extends Module {
     public final BooleanProperty itemSpoof = new BooleanProperty("Item Spoof", false);
     public final BooleanProperty clutch = new BooleanProperty("Clutch", true);
     public final BooleanProperty onlyInVoid = new BooleanProperty("Only Void", false, this.clutch::getValue);
-    public final BooleanProperty bPSRender = new BooleanProperty("Render BPS",true);
+    public final BooleanProperty bPSRender = new BooleanProperty("Render BPS", true);
 
     public final FloatProperty edgeThreshold = new FloatProperty("Edge Threshold", 0.15F, 0.01F, 0.5F, () -> mode.getValue() == 2);
     public final BooleanProperty ticksLimit = new BooleanProperty("Ticks Limit", false, () -> mode.getValue() == 2);
@@ -71,6 +71,9 @@ public class Scaffold extends Module {
     public final BooleanProperty speedLimit = new BooleanProperty("Speed Limit", false, () -> mode.getValue() == 1);
     public final IntProperty speedLimitTicks = new IntProperty("Speed Limit Ticks", 3, 0, 5, () -> mode.getValue() == 1 && speedLimit.getValue());
     public final IntProperty forwardRotationTicks = new IntProperty("Forward Rotation Ticks", 1, 1, 5, () -> mode.getValue() == 1 && speedLimit.getValue());
+    public final IntProperty legitSneakDelay = new IntProperty("Legit Sneak Delay", 3, 1, 5, () -> mode.getValue() == 3);
+    public final IntProperty legitPlaceDuration = new IntProperty("Legit Place Time", 3, 2, 5, () -> mode.getValue() == 3);
+
     private int rotationTick = 0;
     private int lastSlot = -1;
     private int blockCount = -1;
@@ -100,6 +103,9 @@ public class Scaffold extends Module {
     private int airTicks = 0;
     private boolean pendingSpeedLimitRot = false;
     private int forwardRotateTicksLeft = 0;
+    private int legitEdgeState = 0;
+    private int legitEdgeTimer = 0;
+    private boolean legitWasOnEdge = false;
 
     public Scaffold() {
         super("Scaffold", false);
@@ -109,7 +115,6 @@ public class Scaffold extends Module {
     public String[] getSuffix() {
         return new String[]{mode.getModeString()};
     }
-
 
     private boolean shouldStopSprint() {
         if (this.isTowering()) {
@@ -335,6 +340,7 @@ public class Scaffold extends Module {
     public void onUpdate(UpdateEvent event) {
         if (this.isEnabled() && event.getType() == EventType.PRE) {
             boolean tellyMode = this.mode.getValue() == 1;
+            boolean legitMode = this.mode.getValue() == 3;
 
             if (this.rotationTick > 0) {
                 this.rotationTick--;
@@ -415,6 +421,56 @@ public class Scaffold extends Module {
                     snapForward = mc.thePlayer.onGround && !this.isOnEdge();
                 }
             }
+            if (legitMode) {
+                boolean onGround = mc.thePlayer.onGround;
+                boolean atEdge = onGround && this.isOnEdge();
+                boolean holdingBlock = ItemUtil.isHoldingBlock();
+                boolean justReachedEdge = atEdge && !this.legitWasOnEdge;
+
+                if (!onGround) {
+                    this.legitEdgeState = 0;
+                    this.legitEdgeTimer = 0;
+                } else if (atEdge && holdingBlock) {
+                    switch (this.legitEdgeState) {
+                        case 0:
+                            if (justReachedEdge || this.legitEdgeTimer == 0) {
+                                this.legitEdgeState = 1;
+                                this.legitEdgeTimer = this.legitSneakDelay.getValue();
+                            }
+                            break;
+                        case 1:
+                            this.legitEdgeTimer--;
+                            if (this.legitEdgeTimer <= 0) {
+                                this.legitEdgeState = 2;
+                                this.legitEdgeTimer = this.legitPlaceDuration.getValue();
+                            }
+                            break;
+                        case 2:
+                            this.legitEdgeTimer--;
+                            if (this.legitEdgeTimer <= 0) {
+                                this.legitEdgeState = 3;
+                                this.legitEdgeTimer = 3 + (int) (Math.random() * 4);
+                            }
+                            break;
+                        case 3:
+                            this.legitEdgeTimer--;
+                            if (this.legitEdgeTimer <= 0) {
+                                this.legitEdgeState = 0;
+                                this.legitEdgeTimer = 0;
+                            }
+                            break;
+                    }
+                } else {
+                    this.legitEdgeState = 0;
+                    this.legitEdgeTimer = 0;
+                }
+                this.legitWasOnEdge = atEdge;
+                float currentYaw = this.getCurrentYaw();
+                float yawDiffTo180 = RotationUtil.wrapAngleDiff(currentYaw - 180.0F, event.getYaw());
+                this.yaw = RotationUtil.quantizeAngle(yawDiffTo180);
+                this.pitch = RotationUtil.quantizeAngle(85.0F);
+                this.canRotate = true;
+            }
 
             if (this.canPlace()) {
                 ItemStack stack = mc.thePlayer.getHeldItem();
@@ -456,7 +512,7 @@ public class Scaffold extends Module {
                         ? yawDiffTo180
                         : RotationUtil.wrapAngleDiff(currentYaw - 135.0F * ((currentYaw + 180.0F) % 90.0F < 45.0F ? 1.0F : -1.0F), event.getYaw());
 
-                if (!this.canRotate) {
+                if (!this.canRotate && !legitMode) {
                     switch (this.rotationMode.getValue()) {
                         case 1:
                             if (this.yaw == -180.0F && this.pitch == 0.0F) {
@@ -490,7 +546,7 @@ public class Scaffold extends Module {
                 }
 
                 if (blockData != null) {
-                    if (this.rotationMode.getValue() == 3) {
+                    if (this.rotationMode.getValue() == 3 && !legitMode) {
                         double[] offsets = {0.1, 0.3, 0.5, 0.7, 0.9};
                         double[] x = offsets;
                         double[] y = offsets;
@@ -620,12 +676,13 @@ public class Scaffold extends Module {
                     }
                 }
                 if (this.canRotate && MoveUtil.isForwardPressed() && Math.abs(MathHelper.wrapAngleTo180_float(yawDiffTo180 - this.yaw)) < 90.0F) {
-                    if (this.rotationMode.getValue() == 2) {
+                    if (this.rotationMode.getValue() == 2 && !legitMode) {
                         this.yaw = RotationUtil.quantizeAngle(yawDiffTo180);
                     }
                 }
 
-                if (this.rotationMode.getValue() != 0 && this.mode.getValue() != 2) {
+                // ============ ROTATION APPLICATION ============
+                if (!legitMode && this.rotationMode.getValue() != 0 && this.mode.getValue() != 2) {
                     float targetYaw = this.yaw;
                     float targetPitch = this.pitch;
 
@@ -691,9 +748,28 @@ public class Scaffold extends Module {
                     if (this.moveFix.getValue() == 1) {
                         event.setPervRotation(targetYaw, 3);
                     }
+                } else if (legitMode && this.canRotate) {
+                    // Legit mode: smooth backwards rotation
+                    float targetYaw = this.yaw;
+                    float targetPitch = this.pitch;
+                    float yawDiff = MathHelper.wrapAngleTo180_float(targetYaw - event.getYaw());
+                    float tolerance = 180.0F;
+                    if (Math.abs(yawDiff) > tolerance) {
+                        float clampedYaw = RotationUtil.clampAngle(yawDiff, tolerance);
+                        targetYaw = RotationUtil.quantizeAngle(event.getYaw() + clampedYaw);
+                        this.rotationTick = Math.max(this.rotationTick, 1);
+                    }
+                    event.setRotation(targetYaw, targetPitch, 3);
+                    if (this.moveFix.getValue() == 1) {
+                        event.setPervRotation(targetYaw, 3);
+                    }
                 }
+                boolean legitCanPlace = !legitMode
+                        || !mc.thePlayer.onGround
+                        || this.legitEdgeState == 0
+                        || this.legitEdgeState == 2;
 
-                if (blockData != null && hitVec != null && this.rotationTick <= 0) {
+                if (blockData != null && hitVec != null && this.rotationTick <= 0 && legitCanPlace) {
                     if (this.placeDelayCounter > 0) {
                         this.placeDelayCounter--;
                     } else {
@@ -735,7 +811,6 @@ public class Scaffold extends Module {
         }
     }
 
-
     @EventTarget
     public void onMoveInput(MoveInputEvent event) {
         if (this.isEnabled()) {
@@ -754,6 +829,13 @@ public class Scaffold extends Module {
             }
             if (this.mode.getValue() == 1 && mc.thePlayer.onGround && this.stage > 0 && MoveUtil.isForwardPressed() && this.tellyJumpDelayTimer <= 0) {
                 mc.thePlayer.movementInput.jump = true;
+            }
+            if (this.mode.getValue() == 3 && mc.currentScreen == null && !this.clutchActive) {
+                if (mc.thePlayer.onGround && (this.legitEdgeState == 1 || this.legitEdgeState == 2)) {
+                    mc.thePlayer.movementInput.sneak = true;
+                    mc.thePlayer.movementInput.moveStrafe *= 0.3F;
+                    mc.thePlayer.movementInput.moveForward *= 0.3F;
+                }
             }
         }
     }
@@ -803,7 +885,7 @@ public class Scaffold extends Module {
                 int barWidth = 100;
                 int barHeight = 4;
                 int barX = sr.getScaledWidth() / 2 - barWidth / 2;
-                int barY = (int) (sr.getScaledHeight() / 2f);;
+                int barY = (int) (sr.getScaledHeight() / 2f);
                 float maxDisplayBps = 10.0F;
                 float fillWidth = Math.min(barWidth, (currentBps / maxDisplayBps) * barWidth);
                 GlStateManager.pushMatrix();
@@ -817,7 +899,7 @@ public class Scaffold extends Module {
                 RenderUtil.drawRect(markerX - 0.5F, barY - 2, markerX + 0.5F, barY + barHeight + 2, 0xFFFFFFFF);
                 RenderUtil.disableRenderState();
                 GlStateManager.disableDepth();
-                mc.fontRendererObj.drawStringWithShadow("5.92",(int) (markerX - (float) mc.fontRendererObj.getStringWidth("5.92") / 2), barY - 12, -1);
+                mc.fontRendererObj.drawStringWithShadow("5.92", (int) (markerX - (float) mc.fontRendererObj.getStringWidth("5.92") / 2), barY - 12, -1);
                 String bpsText = String.format("%.2f BPS", currentBps);
                 mc.fontRendererObj.drawStringWithShadow(bpsText, barX + barWidth + 2, barY - 2, -1);
                 GlStateManager.enableDepth();
@@ -825,6 +907,7 @@ public class Scaffold extends Module {
             }
         }
     }
+
     @EventTarget
     public void onLeftClick(LeftClickMouseEvent event) {
         if (this.isEnabled()) {
@@ -879,6 +962,9 @@ public class Scaffold extends Module {
         this.airTicks = 0;
         this.pendingSpeedLimitRot = false;
         this.forwardRotateTicksLeft = 0;
+        this.legitEdgeState = 0;
+        this.legitEdgeTimer = 0;
+        this.legitWasOnEdge = false;
     }
 
     @Override
@@ -887,22 +973,6 @@ public class Scaffold extends Module {
         if (mc.thePlayer != null && this.lastSlot != -1) {
             mc.thePlayer.inventory.currentItem = this.lastSlot;
         }
-    }
-
-    public double getLastTowerY() {
-        return lastTowerY;
-    }
-
-    public void setLastTowerY(double lastTowerY) {
-        this.lastTowerY = lastTowerY;
-    }
-
-    public int getTowerTicks() {
-        return towerTicks;
-    }
-
-    public void setTowerTicks(int towerTicks) {
-        this.towerTicks = towerTicks;
     }
 
     public static class BlockData {
