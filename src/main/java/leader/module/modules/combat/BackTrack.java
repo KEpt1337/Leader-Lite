@@ -38,7 +38,6 @@ public class BackTrack extends Module {
   
    private final IntProperty trackMs = new IntProperty("TrackMS", 200, 1, 1000);
    private final FloatProperty maxDistance = new FloatProperty("Max Track Range", 4.0F, 3.1F, 6.0F);
-   private final IntProperty maxTick = new IntProperty("Max Tick", 10, 0, 30);
    private final BooleanProperty rayTrance = new BooleanProperty("Ray Trance",true);
    private final BooleanProperty renderRealPos = new BooleanProperty("Render Real Position", true);
    private final BooleanProperty smart = new BooleanProperty("Smart", true);
@@ -158,8 +157,7 @@ public class BackTrack extends Module {
          }
 
          boolean tooFar = realTargetPos.distanceTo(mc.thePlayer.getPositionVector()) > maxDistance.getValue();
-         boolean tickExpired = attackTicks > maxTick.getValue();
-         if (tickExpired || tooFar) {
+         if (tooFar) {
             resetAndRelease();
             return;
          }

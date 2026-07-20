@@ -42,6 +42,7 @@ public class Stuck extends Module {
                 S12PacketEntityVelocity s12PacketEntityVelocity = (S12PacketEntityVelocity) event.getPacket();
                 if (s12PacketEntityVelocity.getEntityID() == mc.thePlayer.getEntityId()){
                     Leader.delayManager.setDelayState(true, DelayModules.VELOCITY);
+                    tick = 10;
                     Leader.delayManager.delayedPacket.offer(s12PacketEntityVelocity);
                     event.setCancelled(true);
                 }
@@ -51,7 +52,6 @@ public class Stuck extends Module {
     @EventTarget
     public void onTick(TickEvent event){
         if (using && event.getType() == EventType.PRE) {
-            tick++;
             if (tick == 10){
                 this.setEnabled(false);
                 using = true;
@@ -60,6 +60,7 @@ public class Stuck extends Module {
                 this.setEnabled(true);
                 tick = 0;
             }
+            tick++;
         }
     }
 

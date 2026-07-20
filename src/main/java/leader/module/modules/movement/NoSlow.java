@@ -34,7 +34,9 @@ import java.util.Random;
 
 public class NoSlow extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
-    public final ModeProperty swordMode = new ModeProperty("Sword Mode", 1, new String[]{"None", "Vanilla", "BlinkSemi","Prediction"});
+    public final ModeProperty swordMode = new ModeProperty("Sword Mode", 1, new String[]{"None", "Vanilla", "BlinkSemi","Prediction","PredictionSemi"});
+    public final IntProperty cancelTick = new IntProperty("Cancel Tick", 1, 0, 2, () -> swordMode.getValue() == 4);
+    public final IntProperty cancelTick2 = new IntProperty("Cancel Tick 2", 1, 0, 2, () -> swordMode.getValue() == 4);
     public final BooleanProperty slowOnRelease = new BooleanProperty("SlowOnRelease",true,() -> this.swordMode.getValue() == 3);
     public final IntProperty swapDelay = new IntProperty("Slow Delay", 0, 0, 3, () -> swordMode.getValue() == 3);
     public final PercentProperty swordMotion = new PercentProperty("Sword Motion", 100, () -> this.swordMode.getValue() != 0);
@@ -80,7 +82,7 @@ public class NoSlow extends Module {
     }
 
     public boolean isAnyActive() {
-        if (this.swordMode.getValue() != 2 && this.swordMode.getValue() != 3) {
+        if (this.swordMode.getValue() != 2 && this.swordMode.getValue() != 3 && this.swordMode.getValue() != 4) {
             return mc.thePlayer.isUsingItem() && (this.isSwordActive() || this.isFoodActive() || this.isBowActive());
         } else if (this.swordMode.getValue() == 2 && isSwordActive()) {
             return blinkDelay == 2;
@@ -89,6 +91,9 @@ public class NoSlow extends Module {
             if (!slowOnRelease.getValue() || killAura.blockTick != 0) {
                 return delay == 0;
             }
+        } else if (this.swordMode.getValue() == 4 && isSwordActive()) {
+            KillAura killAura = (KillAura) Leader.moduleManager.getModule(KillAura.class);
+            return killAura.isEnabled() && killAura.shouldAutoBlock() && (killAura.blockTick == cancelTick.getValue() || killAura.blockTick == cancelTick2.getValue());
         }
         return false;
     }
