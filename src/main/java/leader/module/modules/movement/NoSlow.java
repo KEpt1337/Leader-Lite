@@ -167,7 +167,7 @@ public class NoSlow extends Module {
         {
             if (blinkDelay >= 0 && this.swordMode.getValue() == 2) {
                 Leader.blinkManager.setBlinkState(false, BlinkModules.AUTO_BLOCK);
-                blinkDelay = 0;
+                blinkDelay = -1;
             }
         }
     }

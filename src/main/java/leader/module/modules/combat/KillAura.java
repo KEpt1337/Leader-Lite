@@ -126,7 +126,7 @@ public class KillAura extends Module {
         this.sort = new ModeProperty("Sort", 0, new String[]{"Distance", "Health", "Hurt Time", "FOV"});
 
         this.autoBlock = new ModeProperty(
-                "AutoBlock", 0, new String[]{"None", "Vanilla","Hypixel", "Legit", "Fake","Hypixel(Without Noslow)","Hypixel Custom","HypixelTestA","HypixelLegit",}
+                "AutoBlock", 0, new String[]{"None", "Vanilla","Hypixel", "Legit", "Fake","Hypixel(Without Noslow)","Hypixel Custom","HypixelTestA","HypixelLag"}
         );
         this.autoBlockRequirePress = new BooleanProperty("AutoBlock Require Press", false);
         this.autoBlockCPS = new IntProperty("AutoBlock Aps", 10, 1, 20);
@@ -721,25 +721,21 @@ public class KillAura extends Module {
                                 if (!Leader.playerStateManager.digging && !Leader.playerStateManager.placing) {
                                     switch (this.blockTick) {
                                         case 0:
+                                            blocked = true;
                                             if (!this.isPlayerBlocking()) {
                                                 swap = true;
                                             }
                                             this.blockTick = 1;
                                             break;
                                         case 1:
+                                            if (this.isPlayerBlocking()) {
+                                                this.stopBlock();
+                                            }
                                             attack = false;
                                             blockTick = 2;
                                             break;
                                         case 2:
-                                            if (this.isPlayerBlocking()) {
-                                                int randomSlot = new Random().nextInt(9);
-                                                while (randomSlot == mc.thePlayer.inventory.currentItem) {
-                                                    randomSlot = new Random().nextInt(9);
-                                                }
-                                                PacketUtil.sendPacket(new C09PacketHeldItemChange(randomSlot));
-                                                PacketUtil.sendPacket(new C09PacketHeldItemChange(mc.thePlayer.inventory.currentItem));
-                                                this.stopBlock();
-                                            }
+                                            Leader.blinkManager.setBlinkState(false,BlinkModules.AUTO_BLOCK);
                                             if (this.attackDelayMS <= 50L) {
                                                 this.blockTick = 0;
                                             }
@@ -749,7 +745,7 @@ public class KillAura extends Module {
                                     }
                                 }
                                 this.isBlocking = true;
-                                this.fakeBlockState = true;
+                                this.fakeBlockState = false;
                             } else {
                                 Leader.blinkManager.setBlinkState(false, BlinkModules.AUTO_BLOCK);
                                 this.isBlocking = false;
