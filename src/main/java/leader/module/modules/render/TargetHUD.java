@@ -56,7 +56,8 @@ public class TargetHUD extends Module {
     public final IntProperty offX = new IntProperty("offset-x", 0, -255, 255);
     public final IntProperty offY = new IntProperty("offset-y", 40, -255, 255);
     public final PercentProperty background = new PercentProperty("background", 25);
-    public final ColorProperty backgroundColor = new ColorProperty("background-color", Color.BLACK.getRGB());
+    public final BooleanProperty backgroundHUDColor = new BooleanProperty("BackgroundHUDColor",true);
+    public final ColorProperty backgroundColor = new ColorProperty("background-color", Color.BLACK.getRGB(),() -> !backgroundHUDColor.getValue());
     public final BooleanProperty head = new BooleanProperty("head", true);
     public final BooleanProperty indicator = new BooleanProperty("indicator", true, () -> this.mode.getValue() != 2);
     public final BooleanProperty outline = new BooleanProperty("outline", false, () -> this.mode.getValue() != 2);
@@ -117,8 +118,12 @@ public class TargetHUD extends Module {
     }
 
     private int getBackgroundColor() {
-        return new Color((this.backgroundColor.getValue() >> 16) & 255, (this.backgroundColor.getValue() >> 8) & 255,
-                this.backgroundColor.getValue() & 255, this.getBackgroundAlpha()).getRGB();
+        HUD hud = (HUD) Leader.moduleManager.getModule(HUD.class);
+        if (!backgroundHUDColor.getValue()) {
+            return new Color((this.backgroundColor.getValue() >> 16) & 255, (this.backgroundColor.getValue() >> 8) & 255,
+                    this.backgroundColor.getValue() & 255, this.getBackgroundAlpha()).getRGB();
+        }
+        else return new Color(hud.getColor(System.currentTimeMillis()).getRed(),hud.getColor(System.currentTimeMillis()).getGreen(),hud.getColor(System.currentTimeMillis()).getBlue(),this.getBackgroundAlpha()).getRGB();
     }
 
     private int getBackgroundOverlayColor(Color color) {

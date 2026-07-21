@@ -139,7 +139,7 @@ public class KillAura extends Module {
         this.switchDelay = new IntProperty("Switch Delay", 150, 0, 1000);
         this.rotations = new ModeProperty("Rotations", 2, new String[]{"None", "Legit", "Silent", "Lock View"});
         this.moveFix = new ModeProperty("Move Fix", 1, new String[]{"None", "Silent", "Strict"});
-        this.rotationMode = new ModeProperty("RotationMode",1,new String[]{"Normal","Nearest"});
+        this.rotationMode = new ModeProperty("RotationMode", 2, new String[]{"Normal", "Nearest", "Smart"});
         this.smoothing = new PercentProperty("Smoothing", 0);
         this.angleStep = new IntProperty("Angle Step", 90, 30, 180);
         this.throughWalls = new BooleanProperty("Through Walls", true);
@@ -249,7 +249,18 @@ public class KillAura extends Module {
             }
         }
     }
-
+    private boolean isNormalTargetVisible(AxisAlignedBB box) {
+        if (mc.thePlayer == null || mc.theWorld == null) return false;
+        Vec3 eyePos = mc.thePlayer.getPositionEyes(1.0F);
+        double minTargetY = box.minY + 0.05 * (box.maxY - box.minY);
+        double maxTargetY = box.minY + 0.75 * (box.maxY - box.minY);
+        double targetY = MathHelper.clamp_double(eyePos.yCoord, minTargetY, maxTargetY);
+        double targetX = (box.minX + box.maxX) / 2.0;
+        double targetZ = (box.minZ + box.maxZ) / 2.0;
+        Vec3 targetPoint = new Vec3(targetX, targetY, targetZ);
+        MovingObjectPosition mop = mc.theWorld.rayTraceBlocks(eyePos, targetPoint, false, true, false);
+        return mop == null; // 无方块碰撞 → 可见
+    }
     private boolean canAttack() {
         if (this.inventoryCheck.getValue() && mc.currentScreen instanceof GuiContainer) {
             return false;
@@ -757,21 +768,23 @@ public class KillAura extends Module {
                 boolean attacked = false;
                 if (this.isBoxInSwingRange(this.target.getBox())) {
                     if (this.rotations.getValue() == 2 || this.rotations.getValue() == 3) {
-                        float[] rotations = RotationUtil.getRotationsToBox(
-                                this.target.getBox(),
-                                event.getYaw(),
-                                event.getPitch(),
-                                (float) this.angleStep.getValue() + RandomUtil.nextFloat(-5.0F, 5.0F),
-                                (float) this.smoothing.getValue() / 100.0F
-                        );
-                        if (this.rotationMode.getValue() == 1) {
-                            rotations = RotationUtil.nearestRotation(
-                                    this.target.getBox(),
-                                    event.getYaw(),
-                                    event.getPitch(),
-                                    (float) this.angleStep.getValue() + RandomUtil.nextFloat(-5.0F, 5.0F),
-                                    (float) this.smoothing.getValue() / 100.0F
-                            );
+                        AxisAlignedBB box = this.target.getBox();
+                        float currentYaw = event.getYaw();
+                        float currentPitch = event.getPitch();
+                        float angleStep = (float) this.angleStep.getValue() + RandomUtil.nextFloat(-5.0F, 5.0F);
+                        float smooth = (float) this.smoothing.getValue() / 100.0F;
+                        float[] rotations;
+                        int mode = this.rotationMode.getValue();
+                        if (mode == 1) {
+                            rotations = RotationUtil.nearestRotation(box, currentYaw, currentPitch, angleStep, smooth);
+                        } else if (mode == 2) {
+                            if (this.isNormalTargetVisible(box)) {
+                                rotations = RotationUtil.getRotationsToBox(box, currentYaw, currentPitch, angleStep, smooth);
+                            } else {
+                                rotations = RotationUtil.nearestRotation(box, currentYaw, currentPitch, angleStep, smooth);
+                            }
+                        } else {
+                            rotations = RotationUtil.getRotationsToBox(box, currentYaw, currentPitch, angleStep, smooth);
                         }
                         if (rotations != null) {
                             event.setRotation(rotations[0], rotations[1], 1);
