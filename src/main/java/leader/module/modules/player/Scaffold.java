@@ -71,8 +71,8 @@ public class Scaffold extends Module {
     public final BooleanProperty speedLimit = new BooleanProperty("Speed Limit", false, () -> mode.getValue() == 1);
     public final IntProperty speedLimitTicks = new IntProperty("Speed Limit Ticks", 3, 0, 5, () -> mode.getValue() == 1 && speedLimit.getValue());
     public final IntProperty forwardRotationTicks = new IntProperty("Forward Rotation Ticks", 1, 1, 5, () -> mode.getValue() == 1 && speedLimit.getValue());
-    public final IntProperty legitSneakDelay = new IntProperty("Legit Sneak Delay", 3, 1, 5, () -> mode.getValue() == 3);
-    public final IntProperty legitPlaceDuration = new IntProperty("Legit Place Time", 3, 2, 5, () -> mode.getValue() == 3);
+    public final IntProperty legitSneakDelay = new IntProperty("Legit Sneak Delay", 4, 1, 5, () -> mode.getValue() == 3);
+    public final IntProperty legitPlaceDuration = new IntProperty("Legit Place Time", 4, 2, 5, () -> mode.getValue() == 3);
 
     private int rotationTick = 0;
     private int lastSlot = -1;
@@ -421,6 +421,7 @@ public class Scaffold extends Module {
                     snapForward = mc.thePlayer.onGround && !this.isOnEdge();
                 }
             }
+
             if (legitMode) {
                 boolean onGround = mc.thePlayer.onGround;
                 boolean atEdge = onGround && this.isOnEdge();
@@ -680,8 +681,6 @@ public class Scaffold extends Module {
                         this.yaw = RotationUtil.quantizeAngle(yawDiffTo180);
                     }
                 }
-
-                // ============ ROTATION APPLICATION ============
                 if (!legitMode && this.rotationMode.getValue() != 0 && this.mode.getValue() != 2) {
                     float targetYaw = this.yaw;
                     float targetPitch = this.pitch;
@@ -749,7 +748,6 @@ public class Scaffold extends Module {
                         event.setPervRotation(targetYaw, 3);
                     }
                 } else if (legitMode && this.canRotate) {
-                    // Legit mode: smooth backwards rotation
                     float targetYaw = this.yaw;
                     float targetPitch = this.pitch;
                     float yawDiff = MathHelper.wrapAngleTo180_float(targetYaw - event.getYaw());
@@ -974,7 +972,6 @@ public class Scaffold extends Module {
             mc.thePlayer.inventory.currentItem = this.lastSlot;
         }
     }
-
     public static class BlockData {
         private final BlockPos blockPos;
         private final EnumFacing facing;

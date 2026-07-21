@@ -92,7 +92,7 @@ public class LagRange extends Module {
                 case PRE:
                     KillAura killAura = (KillAura) Leader.moduleManager.getModule(KillAura.class);
                     if ((killAura.shouldAutoBlock() || killAura.isBlocking() && killAura.isEnabled() && killAura.getTarget() != null) && mode.getValue() == 0){
-                        Leader.blinkManager.setBlinkState(false, BlinkModules.BLINK);
+                        Leader.blinkManager.setBlinkState(false, BlinkModules.LAG_RANGE);
                         return;
                     }
                     Leader.lagManager.setDelay(0);
@@ -114,7 +114,7 @@ public class LagRange extends Module {
                                 .filter(this::isValidTarget)
                                 .collect(Collectors.toList());
                         if (players.isEmpty()) {
-                            Leader.blinkManager.setBlinkState(false, BlinkModules.BLINK);
+                            Leader.blinkManager.setBlinkState(false, BlinkModules.LAG_RANGE);
                             this.tickIndex = -1;
                         } else {
                             double height = mc.thePlayer.getEyeHeight();
@@ -140,9 +140,9 @@ public class LagRange extends Module {
                                             Leader.lagManager.setDelay(this.tickIndex);
                                         }
                                         if (mode.getValue() == 0){
-                                            Leader.blinkManager.setBlinkState(true, BlinkModules.BLINK);
+                                            Leader.blinkManager.setBlinkState(true, BlinkModules.LAG_RANGE);
                                             if (Leader.blinkManager.countMovement() > blinkTick.getValue().longValue()) {
-                                                Leader.blinkManager.setBlinkState(false, BlinkModules.BLINK);
+                                                Leader.blinkManager.setBlinkState(false, BlinkModules.LAG_RANGE);
                                             }
                                         }
                                         this.hasTarget = true;
@@ -153,10 +153,10 @@ public class LagRange extends Module {
                         }
                     } else {
                         this.tickIndex = -1;
-                        Leader.blinkManager.setBlinkState(false, BlinkModules.BLINK);
+                        Leader.blinkManager.setBlinkState(false, BlinkModules.LAG_RANGE);
                     }
                     if (!hasTarget){
-                        Leader.blinkManager.setBlinkState(false, BlinkModules.BLINK);
+                        Leader.blinkManager.setBlinkState(false, BlinkModules.LAG_RANGE);
                     }
                     break;
                 case POST:

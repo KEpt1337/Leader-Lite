@@ -5,6 +5,8 @@ import leader.event.EventManager;
 import leader.events.Render2DEvent;
 import leader.module.modules.render.HUD;
 import leader.module.modules.render.NickHider;
+import leader.module.modules.render.Notification;
+import leader.module.modules.render.Potion;
 import leader.module.modules.render.TargetHUD;
 import leader.util.shader.ShaderElement;
 import net.minecraft.client.entity.EntityPlayerSP;
@@ -33,12 +35,19 @@ public abstract class MixinGuiIngameForge {
         if (Leader.moduleManager != null) {
             HUD hud = (HUD) Leader.moduleManager.modules.get(HUD.class);
             TargetHUD targetHud = (TargetHUD) Leader.moduleManager.modules.get(TargetHUD.class);
+            Notification notification = (Notification) Leader.moduleManager.modules.get(Notification.class);
+            Potion potion = (Potion) Leader.moduleManager.modules.get(Potion.class);
             boolean hudBlur = hud != null && hud.isEnabled() && hud.blur.getValue();
             boolean targetBlur = targetHud != null && targetHud.isEnabled() && targetHud.blur.getValue();
+            boolean notificationBlur = notification != null && notification.isEnabled() && notification.blur.getValue();
+            boolean potionBlur = potion != null && potion.isEnabled() && potion.blur.getValue();
+
             if (hudBlur || targetBlur) {
-                if (hud != null) {
-                    hud.drawBlur();
-                }
+                if (hud != null) hud.drawBlur();
+            } else if (notificationBlur && notification != null) {
+                notification.drawBlur();
+            } else if (potionBlur && potion != null) {
+                potion.drawBlur();
             } else {
                 ShaderElement.getTasks().clear();
             }

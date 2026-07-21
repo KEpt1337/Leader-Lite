@@ -127,7 +127,7 @@ public class TargetHUD extends Module {
     }
 
     private int getBackgroundOverlayColor(Color color) {
-        return new Color(color.getRed(), color.getGreen(), color.getBlue(), this.getBackgroundAlpha() / 2).getRGB();
+        return new Color(color.getRed(), color.getGreen(), color.getBlue(), this.getBackgroundAlpha() / 3).getRGB();
     }
 
     private int getBackgroundAlpha() {
@@ -353,7 +353,21 @@ public class TargetHUD extends Module {
         RenderUtil.drawRect(0.0F, 0.0F, barWidth, barHeight, this.getBackgroundColor());
 
         float filledWidth = healthRatio * barWidth;
-        RenderUtil.drawRect(0.0F, 0.0F, filledWidth, barHeight, this.getBackgroundOverlayColor(healthBarColor));
+        int bgAlpha = this.getBackgroundAlpha();
+        int fillAlpha = Math.min(bgAlpha * 3, 255);
+        int fillColor = new Color(healthBarColor.getRed(), healthBarColor.getGreen(), healthBarColor.getBlue(), fillAlpha).getRGB();
+        RenderUtil.drawRect(0.0F, 0.0F, filledWidth, barHeight, fillColor);
+
+        if (filledWidth > 1.0F && filledWidth < barWidth - 1.0F) {
+            RenderUtil.setColor(healthBarColor.getRGB());
+            GL11.glLineWidth(1.5F);
+            GL11.glBegin(GL11.GL_LINES);
+            GL11.glVertex2f(filledWidth, 0.0F);
+            GL11.glVertex2f(filledWidth, barHeight);
+            GL11.glEnd();
+            GL11.glLineWidth(2.0F);
+            GlStateManager.resetColor();
+        }
 
         int borderColor = new Color(targetColor.getRed(), targetColor.getGreen(), targetColor.getBlue(), 80).getRGB();
         this.drawOutline(0.0F, 0.0F, barWidth, barHeight, 1.0F, borderColor);
@@ -363,13 +377,19 @@ public class TargetHUD extends Module {
         GlStateManager.enableBlend();
         GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
 
-        this.drawText(targetNameText, headIconOffset + 2.0F, this.getTextTop(), -1);
+        float textHeight = this.getTextHeight();
+        float lineSpacing = 3.0F;
+        float totalHeight = textHeight * 2.0F + lineSpacing;
+        float centerTop = (barHeight - totalHeight) / 2.0F;
+        float centerSecondY = centerTop + textHeight + lineSpacing;
+
+        this.drawText(targetNameText, headIconOffset + 2.0F, centerTop, -1);
 
         String displayHealth = ChatColors.formatColor(String.format("&r&f%s&r", healthFormat.format(heal)));
         if (abs > 0.0F) {
             displayHealth = displayHealth + ChatColors.formatColor(String.format(" &6%s&r", healthFormat.format(abs)));
         }
-        this.drawText(displayHealth, headIconOffset + 2.0F, this.getSecondTextY(), -1);
+        this.drawText(displayHealth, headIconOffset + 2.0F, centerSecondY, -1);
 
         if (hasHead) {
             float headY = (barHeight - headSize) / 2.0F;

@@ -109,6 +109,8 @@ public class Leader {
         moduleManager.modules.put(LongJump.class, new LongJump());
         moduleManager.modules.put(MCF.class, new MCF());
         moduleManager.modules.put(NameTags.class, new NameTags());
+        moduleManager.modules.put(Notification.class, new Notification());
+        moduleManager.modules.put(Potion.class, new Potion());
         moduleManager.modules.put(NickHider.class, new NickHider());
         moduleManager.modules.put(NoFall.class, new NoFall());
         moduleManager.modules.put(NoHitDelay.class, new NoHitDelay());

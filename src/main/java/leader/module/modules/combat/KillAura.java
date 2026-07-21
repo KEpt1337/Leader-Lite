@@ -72,6 +72,7 @@ public class KillAura extends Module {
     public final IntProperty attackTick = new IntProperty("AttackTick",0,1,5,() -> this.autoBlock.getValue() == 6);
     private final IntProperty startBlockTick = new IntProperty("StartBlockTick",0,1,5,() -> this.autoBlock.getValue() == 6);
     private final BooleanProperty postStartBlock = new BooleanProperty("PostBlock",false,() -> this.autoBlock.getValue() == 6);
+    private final BooleanProperty alwaysRenderBlocking = new BooleanProperty("AlwaysRenderBlocking",true,() -> this.autoBlock.getValue() == 8);
     public final BooleanProperty autoBlockRequirePress;
     public final IntProperty autoBlockCPS;
     public final FloatProperty autoBlockRange;
@@ -298,6 +299,9 @@ public class KillAura extends Module {
 
     private boolean canAutoBlock() {
         if (Velocity.stoppedBlock){
+            return false;
+        }
+        else if (Leader.moduleManager.getModule(SmartAttack.class).isEnabled() && SmartAttack.shouldCancel && SmartAttack.cancelAuraBlocking.getValue() && SmartAttack.onKillAura.getValue()){
             return false;
         }
         else if (!ItemUtil.isHoldingSword()) {
@@ -756,7 +760,7 @@ public class KillAura extends Module {
                                     }
                                 }
                                 this.isBlocking = true;
-                                this.fakeBlockState = false;
+                                this.fakeBlockState = alwaysRenderBlocking.getValue();
                             } else {
                                 Leader.blinkManager.setBlinkState(false, BlinkModules.AUTO_BLOCK);
                                 this.isBlocking = false;

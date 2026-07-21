@@ -11,19 +11,19 @@ public class FontManager extends Module {
 
     private static final Minecraft mc = Minecraft.getMinecraft();
     private static final String[] FONT_PATHS = {
-            "/assets/leader/font/xylitol_font.ttf",
-            "/assets/leader/font/xylitol_bold.ttf",
-            "/assets/leader/font/harmonyos_sans_sc_regular.ttf",
-            "/assets/leader/font/harmonyos_sans_sc_medium.ttf",
-            "/assets/leader/font/Inter_SemiBold.ttf",
-            "/assets/leader/font/NotoSans-Regular.ttf",
-            "/assets/leader/font/NotoSansSC-Regular.ttf",
-            "/assets/leader/font/Nursultan.ttf",
-            "/assets/leader/font/product_sans_regular.ttf",
-            "/assets/leader/font/SF-Pro-Display-Semibold.otf",
-            "/assets/leader/font/SF-Pro-Rounded-Bold.otf",
-            "/assets/leader/font/SF-Pro-Rounded-Medium.otf",
-            "/assets/leader/font/SF-Pro-Rounded-Regular.otf"
+            "/leader/font/xylitol_font.ttf",
+            "/leader/font/xylitol_bold.ttf",
+            "/leader/font/harmonyos_sans_sc_regular.ttf",
+            "/leader/font/harmonyos_sans_sc_medium.ttf",
+            "/leader/font/Inter_SemiBold.ttf",
+            "/leader/font/NotoSans-Regular.ttf",
+            "/leader/font/NotoSansSC-Regular.ttf",
+            "/leader/font/Nursultan.ttf",
+            "/leader/font/product_sans_regular.ttf",
+            "/leader/font/SF-Pro-Display-Semibold.otf",
+            "/leader/font/SF-Pro-Rounded-Bold.otf",
+            "/leader/font/SF-Pro-Rounded-Medium.otf",
+            "/leader/font/SF-Pro-Rounded-Regular.otf"
     };
 
     public static BooleanProperty customFont = new BooleanProperty("CustomFont", false);
@@ -55,6 +55,9 @@ public class FontManager extends Module {
         int currentMode = font.getValue();
         float currentSize = fontSize.getValue();
         if (customFontRenderer == null || currentMode != lastFontMode || currentSize != lastFontSize) {
+            if (customFontRenderer != null) {
+                customFontRenderer.dispose();
+            }
             lastFontMode = currentMode;
             lastFontSize = currentSize;
             customFontRenderer = new CustomFontRenderer(FONT_PATHS[currentMode], currentSize, true);

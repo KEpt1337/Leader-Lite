@@ -17,6 +17,7 @@ public class SmartAttack extends Module {
     private final BooleanProperty onRising = new BooleanProperty("CancelRisingAttack",true);
     private final IntProperty stopHurtTime = new IntProperty("StopHurtTime",7,0,9);
     public static final BooleanProperty onKillAura = new BooleanProperty("OnKillAura",true);
+    public static final BooleanProperty cancelAuraBlocking = new BooleanProperty("CancelAuraBlocking",true,onKillAura::getValue);
     public static boolean shouldCancel;
     private EntityLivingBase target;
     @EventTarget

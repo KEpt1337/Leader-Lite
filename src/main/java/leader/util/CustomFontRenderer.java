@@ -266,13 +266,18 @@ public class CustomFontRenderer {
         return p;
     }
 
+    public void dispose() {
+        for (int i = 0; i < textures.length; i++) {
+            if (textures[i] != -1) {
+                GL11.glDeleteTextures(textures[i]);
+                textures[i] = -1;
+            }
+        }
+    }
+
     @Override
     protected void finalize() throws Throwable {
         super.finalize();
-        for (int texId : textures) {
-            if (texId != -1) {
-                GL11.glDeleteTextures(texId);
-            }
-        }
+        dispose();
     }
 }
