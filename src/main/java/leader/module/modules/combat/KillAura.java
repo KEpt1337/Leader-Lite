@@ -1043,8 +1043,14 @@ public class KillAura extends Module {
             float g2 = col2.getGreen() / 255f;
             float b2 = col2.getBlue() / 255f;
 
-            float alphaBottom = 0.05f;
-            float alphaTop = 0.7f;
+        float alphaTop, alphaBottom;
+        if (Math.cos(rawAngle) > 0) {
+            alphaBottom = 0.05f;
+            alphaTop = 0.7f;
+        } else {
+            alphaBottom = 0.7f;
+            alphaTop = 0.05f;
+        }
 
             worldrenderer.begin(GL11.GL_TRIANGLE_STRIP, DefaultVertexFormats.POSITION_COLOR);
             worldrenderer.pos(x1, bottomY, z1).color(r1, g1, b1, alphaBottom).endVertex();

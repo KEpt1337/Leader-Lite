@@ -91,8 +91,6 @@ public class Scaffold extends Module {
     private int clutchTickCounter = 0;
     private EnumFacing targetFacing = null;
     public static int count = 0;
-    private int towerTicks = 0;
-    private double lastTowerY = 0.0;
     private int placeDelayCounter = 0;
     private double prevBpsX, prevBpsZ;
     private float currentBps;
@@ -101,6 +99,7 @@ public class Scaffold extends Module {
     private int snapForwardTimer = 0;
     private boolean snapLocked = false;
     private int airTicks = 0;
+    private boolean legitLastKeyFwd, legitLastKeyBack, legitLastKeyLeft, legitLastKeyRight;
     private boolean pendingSpeedLimitRot = false;
     private int forwardRotateTicksLeft = 0;
     private int legitEdgeState = 0;
@@ -221,7 +220,19 @@ public class Scaffold extends Module {
                 mc.thePlayer.rotationYaw, (float) MoveUtil.getForwardValue(), (float) MoveUtil.getLeftValue()
         );
     }
-
+    private boolean rawKeysChanged() {
+        boolean fwd = mc.gameSettings.keyBindForward.isKeyDown();
+        boolean back = mc.gameSettings.keyBindBack.isKeyDown();
+        boolean left = mc.gameSettings.keyBindLeft.isKeyDown();
+        boolean right = mc.gameSettings.keyBindRight.isKeyDown();
+        boolean changed = (fwd != legitLastKeyFwd) || (back != legitLastKeyBack)
+                || (left != legitLastKeyLeft) || (right != legitLastKeyRight);
+        legitLastKeyFwd = fwd;
+        legitLastKeyBack = back;
+        legitLastKeyLeft = left;
+        legitLastKeyRight = right;
+        return changed;
+    }
     private boolean isDiagonal(float yaw) {
         float absYaw = Math.abs(yaw % 90.0F);
         return absYaw > 20.0F && absYaw < 70.0F;
@@ -466,11 +477,18 @@ public class Scaffold extends Module {
                     this.legitEdgeTimer = 0;
                 }
                 this.legitWasOnEdge = atEdge;
-                float currentYaw = this.getCurrentYaw();
-                float yawDiffTo180 = RotationUtil.wrapAngleDiff(currentYaw - 180.0F, event.getYaw());
-                this.yaw = RotationUtil.quantizeAngle(yawDiffTo180);
-                this.pitch = RotationUtil.quantizeAngle(85.0F);
-                this.canRotate = true;
+                if (!mc.thePlayer.onGround) {
+                    float currentYaw = this.getCurrentYaw();
+                    float yawDiffTo180 = RotationUtil.wrapAngleDiff(currentYaw - 180.0F, event.getYaw());
+                    this.yaw = RotationUtil.quantizeAngle(yawDiffTo180);
+                    this.pitch = RotationUtil.quantizeAngle(85.0F);
+                    this.canRotate = true;
+                }
+                else {
+                    this.yaw = this.getCurrentYaw() - 180;
+                    this.pitch = RotationUtil.quantizeAngle(85.0F);
+                    this.canRotate = true;
+                }
             }
 
             if (this.canPlace()) {
@@ -948,8 +966,6 @@ public class Scaffold extends Module {
         this.pitch = 0.0F;
         this.canRotate = false;
         this.towering = false;
-        this.towerTicks = 0;
-        this.lastTowerY = 0.0;
         this.placeDelayCounter = 0;
         this.prevBpsX = mc.thePlayer.posX;
         this.prevBpsZ = mc.thePlayer.posZ;

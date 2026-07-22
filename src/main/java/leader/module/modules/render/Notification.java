@@ -105,7 +105,6 @@ public class Notification extends Module {
             float y = (baseY - idx * step) * invScale;
             float x = baseX * invScale;
             Color themeColor = entry.enabled ? new Color(0x00FF00) : new Color(0xFF4444);
-            String icon = entry.enabled ? "\u2713" : "\u2717";
 
             if (doBlur) {
                 final float bx = x;
@@ -148,11 +147,32 @@ public class Notification extends Module {
             FontManager.drawString(entry.moduleName, 0.0F, 0.0F, nameColor, false);
             GlStateManager.popMatrix();
 
-            float iconWidth = mc.fontRendererObj.getStringWidth(icon) * textScale;
+            float iconSize = 8.0F;
+            float iconX = x + cardWidth - 4.0F - iconSize;
+            float iconY = y + (cardHeight - iconSize) / 2.0F;
             GlStateManager.pushMatrix();
-            GlStateManager.translate(x + cardWidth - 4.0F - iconWidth, y + textY, 0.0F);
-            GlStateManager.scale(textScale, textScale, 1.0F);
-            mc.fontRendererObj.drawString(icon, 0.0F, 0.0F, iconColor, false);
+            GlStateManager.translate(iconX, iconY, 0.0F);
+            GlStateManager.disableTexture2D();
+            GL11.glLineWidth(2.0F);
+            GL11.glEnable(GL11.GL_LINE_SMOOTH);
+            GL11.glBegin(GL11.GL_LINES);
+            if (entry.enabled) {
+                GL11.glColor4f(themeColor.getRed() / 255f, themeColor.getGreen() / 255f, themeColor.getBlue() / 255f, alpha);
+                GL11.glVertex2f(1.0F, iconSize * 0.55F);
+                GL11.glVertex2f(iconSize * 0.45F, iconSize - 1.0F);
+                GL11.glVertex2f(iconSize * 0.45F, iconSize - 1.0F);
+                GL11.glVertex2f(iconSize - 1.0F, 1.0F);
+            } else {
+                GL11.glColor4f(themeColor.getRed() / 255f, themeColor.getGreen() / 255f, themeColor.getBlue() / 255f, alpha);
+                GL11.glVertex2f(1.0F, 1.0F);
+                GL11.glVertex2f(iconSize - 1.0F, iconSize - 1.0F);
+                GL11.glVertex2f(iconSize - 1.0F, 1.0F);
+                GL11.glVertex2f(1.0F, iconSize - 1.0F);
+            }
+            GL11.glEnd();
+            GL11.glDisable(GL11.GL_LINE_SMOOTH);
+            GL11.glLineWidth(2.0F);
+            GlStateManager.enableTexture2D();
             GlStateManager.popMatrix();
 
             GlStateManager.enableDepth();

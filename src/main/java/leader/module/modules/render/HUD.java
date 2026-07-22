@@ -59,6 +59,8 @@ public class HUD extends Module {
     public final BooleanProperty blur = new BooleanProperty("blur", false);
     public final IntProperty blurIterations = new IntProperty("blur-iterations", 2, 1, 8);
     public final IntProperty blurOffset = new IntProperty("blur-offset", 3, 1, 10);
+    public final IntProperty barless = new IntProperty("barless", 0, 0, 8, () -> this.showBar.getValue());
+    public final ModeProperty barMode = new ModeProperty("bar-mode", 0, new String[]{"RIGHT", "LEFT", "TOP", "BOTTOM"}, () -> this.showBar.getValue());
     private Framebuffer blurStencil;
 
     private String getModuleName(Module module) {
@@ -203,6 +205,10 @@ public class HUD extends Module {
     }
 
     private void drawGlowText(String text, float x, float y, int color, int passes, float spread) {
+        if (!FontManager.customFont.getValue()) return;
+        GlStateManager.enableBlend();
+        GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+        GlStateManager.enableTexture2D();
         for (int i = passes; i >= 1; i--) {
             float offset = i * spread;
             float intensity = (float) (passes - i + 1) / (float) passes;
@@ -217,6 +223,7 @@ public class HUD extends Module {
             FontManager.drawString(text, x + diagonal, y - diagonal, glowColor, false);
             FontManager.drawString(text, x - diagonal, y - diagonal, glowColor, false);
         }
+        GlStateManager.disableBlend();
     }
 
     @EventTarget
@@ -252,6 +259,13 @@ public class HUD extends Module {
             GlStateManager.scale(this.scale.getValue(), this.scale.getValue(), 0.0F);
             long l = System.currentTimeMillis();
             long offset = 0L;
+            float listMinX = Float.MAX_VALUE, listMinY = Float.MAX_VALUE;
+            float listMaxX = Float.MIN_VALUE, listMaxY = Float.MIN_VALUE;
+            int count = this.activeModules.size();
+            float[] rowX1 = new float[count];
+            float[] rowX2 = new float[count];
+            float[] rowY1 = new float[count];
+            float[] rowY2 = new float[count];
             for (Module module : this.activeModules) {
                 String moduleName = this.getModuleName(module);
                 String[] moduleSuffix = this.getModuleSuffix(module);
@@ -266,6 +280,14 @@ public class HUD extends Module {
                 float bgY2 = sy + height + (this.posY.getValue() == 0 ? (this.shadow.getValue() ? 1.0F : 0.0F) : (offset == 0L ? 1.0F : 0.0F));
                 float textX = sx - (this.posX.getValue() == 1 ? totalWidth : 0.0F);
                 float textY = sy;
+                listMinX = Math.min(listMinX, bgX1);
+                listMinY = Math.min(listMinY, bgY1);
+                listMaxX = Math.max(listMaxX, bgX2);
+                listMaxY = Math.max(listMaxY, bgY2);
+                rowX1[(int)offset] = bgX1;
+                rowX2[(int)offset] = bgX2;
+                rowY1[(int)offset] = bgY1;
+                rowY2[(int)offset] = bgY2;
                 boolean hasBg = this.background.getValue() > 0;
                 boolean useThemeBg = this.bgColor.getValue();
                 int bgAlphaColor;
@@ -305,46 +327,50 @@ public class HUD extends Module {
                     RenderUtil.drawRect(bgX1, bgY1, bgX2, bgY2, bgAlphaColor);
                 }
                 if (this.showBar.getValue()) {
-                    if (this.shadow.getValue()) {
-                        if (this.glow.getValue()) {
-                            float barShadowX1 = sx + (this.posX.getValue() == 0 ? -3.0F : 1.0F);
-                            float barShadowY1 = sy - (this.posY.getValue() == 0 ? (offset == 0L ? 1.0F : 0.0F) : 1.0F);
-                            float barShadowX2 = sx + (this.posX.getValue() == 0 ? -2.0F : 2.0F);
-                            float barShadowY2 = sy + height + (this.posY.getValue() == 0 ? 1.0F : (offset == 0L ? 1.0F : 0.0F));
-                            drawGlowOutline(barShadowX1, barShadowY1, barShadowX2, barShadowY2, glowColor, 4, 0.35F, true, true, true, true);
+                    int barModeVal = this.barMode.getValue();
+                    int barlessVal = this.barless.getValue();
+                    float barY1 = bgY1 + barlessVal;
+                    float barY2 = bgY2 - barlessVal;
+                    if (barModeVal == 0) {
+                        float bw = 2.0F;
+                        boolean alignLeft = this.posX.getValue() == 0;
+                        if (alignLeft) {
+                            if (this.shadow.getValue()) {
+                                RenderUtil.drawRect(sx - 3.0F, barY1, sx - 2.0F, barY2, color);
+                                RenderUtil.drawRect(sx - 2.0F, barY1, sx - 1.0F, barY2, (color & 16579836) >> 2 | color & 0xFF000000);
+                            } else {
+                                RenderUtil.drawRect(sx - 2.0F, barY1, sx - 1.0F, barY2, color);
+                            }
+                        } else {
+                            if (this.shadow.getValue()) {
+                                RenderUtil.drawRect(sx + 1.0F, barY1, sx + 2.0F, barY2, (color & 16579836) >> 2 | color & 0xFF000000);
+                                RenderUtil.drawRect(sx + 2.0F, barY1, sx + 3.0F, barY2, color);
+                            } else {
+                                RenderUtil.drawRect(sx + 1.0F, barY1, sx + 2.0F, barY2, color);
+                            }
                         }
-                        RenderUtil.drawRect(
-                                sx + (this.posX.getValue() == 0 ? -3.0F : 1.0F),
-                                sy - (this.posY.getValue() == 0 ? (offset == 0L ? 1.0F : 0.0F) : 1.0F),
-                                sx + (this.posX.getValue() == 0 ? -2.0F : 2.0F),
-                                sy + height + (this.posY.getValue() == 0 ? 1.0F : (offset == 0L ? 1.0F : 0.0F)),
-                                color
-                        );
-                        RenderUtil.drawRect(
-                                sx + (this.posX.getValue() == 0 ? -2.0F : 2.0F),
-                                sy - (this.posY.getValue() == 0 ? (offset == 0L ? 1.0F : 0.0F) : 1.0F),
-                                sx + (this.posX.getValue() == 0 ? -1.0F : 3.0F),
-                                sy + height + (this.posY.getValue() == 0 ? 1.0F : (offset == 0L ? 1.0F : 0.0F)),
-                                (color & 16579836) >> 2 | color & 0xFF000000
-                        );
-                    } else {
-                        if (this.glow.getValue()) {
-                            float barX1 = sx + (this.posX.getValue() == 0 ? -2.0F : 1.0F);
-                            float barY1 = sy - (this.posY.getValue() == 0 ? (offset == 0L ? 1.0F : 0.0F) : 0.0F);
-                            float barX2 = sx + (this.posX.getValue() == 0 ? -1.0F : 2.0F);
-                            float barY2 = sy + height + (this.posY.getValue() == 0 ? 0.0F : (offset == 0L ? 1.0F : 0.0F));
-                            drawGlowOutline(barX1, barY1, barX2, barY2, glowColor, 4, 0.35F, true, true, true, true);
+                    } else if (barModeVal == 1) {
+                        float bw = 1.0F;
+                        boolean alignLeft = this.posX.getValue() == 0;
+                        if (alignLeft) {
+                            RenderUtil.drawRect(bgX2, barY1, bgX2 + bw, barY2, color);
+                        } else {
+                            RenderUtil.drawRect(bgX1 - bw, barY1, bgX1, barY2, color);
                         }
-                        RenderUtil.drawRect(
-                                sx + (this.posX.getValue() == 0 ? -2.0F : 1.0F),
-                                sy - (this.posY.getValue() == 0 ? (offset == 0L ? 1.0F : 0.0F) : 0.0F),
-                                sx + (this.posX.getValue() == 0 ? -1.0F : 2.0F),
-                                sy + height + (this.posY.getValue() == 0 ? 0.0F : (offset == 0L ? 1.0F : 0.0F)),
-                                color
-                        );
+                    } else if (barModeVal == 2) {
+                        float bw = 1.0F;
+                        if (offset == 0L) {
+                            RenderUtil.drawRect(bgX1, bgY1 - bw, bgX2, bgY1, color);
+                        }
+                    } else if (barModeVal == 3) {
+                        float bw = 1.0F;
+                        if (offset == this.activeModules.size() - 1) {
+                            RenderUtil.drawRect(bgX1, bgY2, bgX2, bgY2 + bw, color);
+                        }
                     }
                 }
                 RenderUtil.disableRenderState();
+
                 GlStateManager.disableDepth();
 
                 if (this.glow.getValue()) {
@@ -389,6 +415,7 @@ public class HUD extends Module {
                 y += (height + (this.shadow.getValue() ? 1.0F : 0.0F)) * this.scale.getValue() * (this.posY.getValue() == 0 ? 1.0F : -1.0F);
                 offset++;
             }
+
             if (this.blinkTimer.getValue()) {
                 BlinkModules blinkingModule = Leader.blinkManager.getBlinkingModule();
                 if (blinkingModule != BlinkModules.NONE && blinkingModule != BlinkModules.AUTO_BLOCK) {
